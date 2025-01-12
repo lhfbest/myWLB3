@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8"/>
@@ -24,25 +24,48 @@
        width: 300px !important;
        height: 300px !important;
     }
+
+    /* 响应式调整 */
+    @media (max-width: 768px) {
+      th, td {
+        padding: 4px;
+        font-size: 12px;
+      }
+      button {
+        font-size: 14px;
+        padding: 8px 16px;
+      }
+      canvas {
+        width: 100% !important;
+        height: auto !important;
+      }
+      #pieChartContainer canvas {
+        width: 100% !important;
+        height: auto !important;
+      }
+    }
   </style>
   <!-- 引入Chart.js库 -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <h1>统计表格</h1>
-  <table id="statsTable">
-    <thead>
-      <tr>
-         <th>时间</th>
-         <th>工作时长</th>
-         <th>娱乐时长</th>
-         <th>利润</th>
-         <th>最高徽章</th>
-         <th>操作</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <!-- 增加一个可横向滚动的容器包裹表格 -->
+  <div style="overflow-x:auto;">
+    <table id="statsTable">
+      <thead>
+        <tr>
+          <th>时间</th>
+          <th>工作时长</th>
+          <th>娱乐时长</th>
+          <th>利润</th>
+          <th>最高徽章</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
   <button id="manualInputBtn">手动输入记录</button>
   <button id="showChartBtn">显示图表</button>
   <button id="sortBtn">日期排序</button>
@@ -164,14 +187,13 @@
       const playInput = prompt("请输入娱乐时长（分钟）：");
       const work = (parseFloat(workInput) || 0) * 60;
       const play = (parseFloat(playInput) || 0) * 60;
-      const profit = work - play;
       const parsedDate = parseDateOnly(time);
       const archiveEntry = {
         time,
         timestamp: parsedDate.getTime(),
         work,
         play,
-        profit,
+        profit: work - play,
         highestBadges: ''
       };
       let archives = loadArchives();
