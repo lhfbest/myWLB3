@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>  
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -212,7 +212,6 @@
     updateClock();
 
     let events = JSON.parse(localStorage.getItem('events')) || [];
-    let deposit = parseFloat(localStorage.getItem('deposit')) || 0;
     let workTimerStart = null;
     let playTimerStart = null;
     let workInterval = null;
@@ -248,6 +247,10 @@
       document.getElementById('playTime').innerHTML = `${playExpr}<br>= ${formatTime(playSum)}`;
       document.getElementById('profitTime').innerHTML = `= ${formatTime(profit)}`;
 
+      // 从统计档案中计算存款（所有利润之和）
+      let archives = JSON.parse(localStorage.getItem('archives')) || [];
+      let deposit = archives.reduce((sum, a) => sum + a.profit, 0);
+      
       document.getElementById('depositDisplay').textContent = `存款: ${formatTime(deposit)}`;
 
       // 更新工作时长成就徽章
@@ -346,10 +349,6 @@
       let playSum = playEvents.reduce((sum, e) => sum + e.value, 0);
       let profit = workSum - playSum;
       
-      // 更新存款，将利润累加到存款
-      deposit += profit;
-      localStorage.setItem('deposit', deposit);
-      
       const now = new Date();
       const workAchievements = [
         { threshold: 1800, label: '小试锋芒（30min工作）', icon: '🎖️' },
@@ -419,7 +418,6 @@
       localStorage.setItem('events', JSON.stringify(events));
       updateDisplay();
     }
-
 
     document.getElementById('workBtn').addEventListener('click', () => {
       const amount = parseFloat(prompt('你工作了多少分钟？'));
