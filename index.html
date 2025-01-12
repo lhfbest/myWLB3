@@ -1,0 +1,570 @@
+<!DOCTYPE html> 
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WLB记录器</title>
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    /* 全局样式：冷淡风格 */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #ffffff;
+      color: #333;
+      margin: 20px;
+    }
+    /* 实时钟样式 */
+    #clock {
+      font-size: 20px;
+      margin-bottom: 20px;
+      text-align: center;
+      color: #333;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    /* 存款显示样式调整 */
+    #depositDisplay {
+      font-size: 18px;
+      background: #f9f9f9;
+      padding: 5px 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      text-align: center;
+      margin: 0 auto 20px;
+      width: fit-content;
+    }
+    /* 按钮容器样式 */
+    .button-container {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      gap: 20px;
+    }
+    .button-group {
+      display: flex;
+      flex-direction: column;
+      width: 48%;
+    }
+    /* 通用按钮样式 */
+    .button-group button {
+      width: 100%;
+      padding: 10px 20px;
+      margin: 5px 0;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    /* 计时控制组样式 */
+    .button-group.control-group button {
+      background: #e7edf5;
+      border: 1px solid #bccce0;
+      color: #333;
+    }
+    .button-group.control-group button:hover {
+      background: #dfe7f0;
+    }
+    /* 数据与统计组样式 */
+    .button-group.data-group button {
+      background: #f5f5f5;
+      border: 1px solid #ccc;
+      color: #333;
+    }
+    .button-group.data-group button:hover {
+      background: #eaeaea;
+    }
+    p {
+      font-size: 18px;
+      margin: 10px 0;
+    }
+    .timer-display {
+      margin-top: 20px;
+      padding: 10px;
+      border-top: 1px solid #ccc;
+    }
+    .timer-display p {
+      font-size: 16px;
+      margin: 5px 0;
+      color: #555;
+    }
+    /* 实时计时显示样式 */
+    .realtime-display {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 20px;
+      font-size: 20px;
+    }
+    .realtime-display div {
+      margin: 5px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .realtime-display .timer-icon {
+      font-size: 24px;
+    }
+    /* 徽章样式 */
+    .badge {
+      display: inline-block;
+      margin: 5px 5px 5px 0;
+      padding: 5px 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background: #eee;
+      font-size: 14px;
+      opacity: 0.5;
+      transition: opacity 0.3s, font-weight 0.3s;
+    }
+    .badge.active {
+      opacity: 1;
+      font-weight: bold;
+    }
+    #badgesContainer, 
+    #playBadgesContainer, 
+    #profitBadgesContainer,
+    #diffBadgesContainer {
+      margin-top: 20px;
+      padding: 10px;
+      border-top: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <div id="clock">加载时间...</div>
+  <h1>WLB记录器</h1>
+  <div id="depositDisplay">存款: 0h 0min 0s</div>
+
+  <div class="button-container">
+    <!-- 计时控制组 -->
+    <div class="button-group control-group">
+      <button id="startWorkBtn">开始工作</button>
+      <button id="stopWorkBtn" disabled>停止工作</button>
+      <button id="startPlayBtn">开始娱乐</button>
+      <button id="stopPlayBtn" disabled>停止娱乐</button>
+    </div>
+    <!-- 数据与统计组 -->
+    <div class="button-group data-group">
+      <button id="workBtn">手动输入工作时长</button>
+      <button id="playBtn">手动输入娱乐时长</button>
+      <button id="refreshExprBtn">刷新表达式</button>
+      <button id="archiveAndRefreshBtn">存档并刷新</button>
+      <button id="viewStatsBtn">查看统计</button>
+    </div>
+  </div>
+
+  <!-- 新增实时计时显示区域 -->
+  <div class="realtime-display">
+    <div id="workRealTime" style="display: none;">
+      <span class="timer-icon">⏰</span>
+      <span>工作中：0h 0min 0s</span>
+    </div>
+    <div id="playRealTime" style="display: none;">
+      <span class="timer-icon">🎮</span>
+      <span>娱乐中：0h 0min 0s</span>
+    </div>
+  </div>
+
+  <div class="timer-display">
+    <p>工作时长:<br><span id="workTime">0h 0min 0s</span></p>
+    <p>娱乐时长:<br><span id="playTime">0h 0min 0s</span></p>
+    <p>利润:<br><span id="profitTime">0h 0min 0s</span></p>
+    <div id="currentTimers" style="display:none;">
+      <!-- 隐藏原有的实时计时显示元素 -->
+      <p id="currentWorkTimer">工作中：0h 0min 0s</p>
+      <p id="currentPlayTimer">娱乐中：0h 0min 0s</p>
+    </div>
+  </div>
+  
+  <!-- 徽章区域 -->
+  <div id="badgesContainer">
+    <p>工作时长成就徽章</p>
+    <div id="badges"></div>
+  </div>
+  <div id="playBadgesContainer">
+    <p>娱乐时长成就徽章</p>
+    <div id="playBadges"></div>
+  </div>
+  <div id="profitBadgesContainer">
+    <p>利润成就徽章</p>
+    <div id="profitBadges"></div>
+  </div>
+  <div id="diffBadgesContainer">
+    <p>存款成就徽章</p>
+    <div id="diffBadges"></div>
+  </div>
+  
+  <script>
+    function updateClock() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hour = String(now.getHours()).padStart(2, '0');
+      const minute = String(now.getMinutes()).padStart(2, '0');
+      const second = String(now.getSeconds()).padStart(2, '0');
+      document.getElementById('clock').textContent = `${year}年 ${month}月 ${day}日 ${hour}:${minute}:${second}`;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    let events = JSON.parse(localStorage.getItem('events')) || [];
+    let deposit = parseFloat(localStorage.getItem('deposit')) || 0;
+    let workTimerStart = null;
+    let playTimerStart = null;
+    let workInterval = null;
+    let playInterval = null;
+    let workRecordInterval = null;
+    let playRecordInterval = null;
+    let lastWorkRecordTime = null;
+    let lastPlayRecordTime = null;
+    let currentWorkIndex = null;
+    let currentPlayIndex = null;
+
+    function formatTime(totalSeconds) {
+      let sign = totalSeconds < 0 ? '-' : '';
+      totalSeconds = Math.abs(Math.round(totalSeconds));
+      let hours = Math.floor(totalSeconds / 3600);
+      let minutes = Math.floor((totalSeconds % 3600) / 60);
+      let seconds = totalSeconds % 60;
+      return `${sign}${hours}h ${minutes}min ${seconds}s`;
+    }
+
+    function updateDisplay() {
+      let workEvents = events.filter(e => e.type === 'work');
+      let playEvents = events.filter(e => e.type === 'play');
+      let surplusEvents = events.filter(e => e.type === 'surplus');
+      let workSum = workEvents.reduce((sum, e) => sum + e.value, 0);
+      let playSum = playEvents.reduce((sum, e) => sum + e.value, 0);
+      let profit = workSum - playSum;
+      
+      let workExpr = workEvents.length === 0 ? '0h 0min 0s' : workEvents.map(e => '+' + formatTime(e.value)).join('<br>');
+      let playExpr = playEvents.length === 0 ? '0h 0min 0s' : playEvents.map(e => '+' + formatTime(e.value)).join('<br>');
+      
+      document.getElementById('workTime').innerHTML = `${workExpr}<br>= ${formatTime(workSum)}`;
+      document.getElementById('playTime').innerHTML = `${playExpr}<br>= ${formatTime(playSum)}`;
+      document.getElementById('profitTime').innerHTML = `= ${formatTime(profit)}`;
+
+      document.getElementById('depositDisplay').textContent = `存款: ${formatTime(deposit)}`;
+
+      // 更新工作时长成就徽章
+      const badgesContainer = document.getElementById('badges');
+      badgesContainer.innerHTML = '';
+      const workAchievements = [
+        { threshold: 1800, label: '小试锋芒（30min工作）', icon: '🎖️' },
+        { threshold: 3600, label: '卧龙出山（1h工作）', icon: '🏅' },
+        { threshold: 7200, label: '双连！一战成名（2h工作）', icon: '🎖️' },
+        { threshold: 10800, label: '三连！举世皆惊（3h工作）', icon: '🏅' },
+        { threshold: 14400, label: '四连！天下无敌（4h工作）', icon: '🎖️' },
+        { threshold: 18000, label: '五连！诛天灭地（5h工作）', icon: '🏅' }
+      ];
+      workAchievements.forEach(ach => {
+        const span = document.createElement('span');
+        span.className = 'badge' + (workSum >= ach.threshold ? ' active' : '');
+        span.textContent = `${ach.icon} ${ach.label}`;
+        badgesContainer.appendChild(span);
+      });
+
+      // 更新娱乐时长成就徽章
+      const playBadgesContainer = document.getElementById('playBadges');
+      playBadgesContainer.innerHTML = '';
+      const playAchievements = [
+        { threshold: 15 * 60, label: '一刻流芳（15min娱乐）', icon: '🎉' },
+        { threshold: 60 * 60, label: '时光荏苒（1h娱乐）', icon: '🎉' },
+        { threshold: 120 * 60, label: '心旷神怡（2h娱乐）', icon: '🎉' },
+        { threshold: 180 * 60, label: '其乐无穷（3h娱乐）', icon: '🎉' },
+        { threshold: 240 * 60, label: '畅快淋漓（4h娱乐）', icon: '🎉' },
+        { threshold: 300 * 60, label: '人间至乐（5h娱乐）', icon: '🎉' },
+        { threshold: 360 * 60, label: '浮生半日（6h娱乐）', icon: '🎉' },
+        { threshold: 480 * 60, label: '天人合一（8h娱乐）', icon: '🎉' }
+      ];
+      playAchievements.forEach(ach => {
+        const span = document.createElement('span');
+        span.className = 'badge' + (playSum >= ach.threshold ? ' active' : '');
+        span.textContent = `${ach.icon} ${ach.label}`;
+        playBadgesContainer.appendChild(span);
+      });
+
+      // 更新利润成就徽章
+      const profitBadgesContainer = document.getElementById('profitBadges');
+      profitBadgesContainer.innerHTML = '';
+      const profitAchievements = [
+        { threshold: 30 * 60, label: '一念之间（30min利润）', icon: '🎉' },
+        { threshold: 60 * 60, label: '宁静致远（1h利润）', icon: '🎉' },
+        { threshold: 120 * 60, label: '潜心笃行（2h利润）', icon: '🎉' },
+        { threshold: 240 * 60, label: '一心一意（4h利润）', icon: '🎉' },
+        { threshold: 300 * 60, label: '静水流深（5h利润）', icon: '🎉' },
+        { threshold: 360 * 60, label: '忘我专注（6h利润）', icon: '🎉' },
+        { threshold: 420 * 60, label: '如沐春风（7h利润）', icon: '🎉' },
+        { threshold: 480 * 60, label: '无我无境（8h利润）', icon: '🎉' }
+      ];
+      profitAchievements.forEach(ach => {
+        const span = document.createElement('span');
+        span.className = 'badge' + (profit >= ach.threshold ? ' active' : '');
+        span.textContent = `${ach.icon} ${ach.label}`;
+        profitBadgesContainer.appendChild(span);
+      });
+
+      // 更新存款成就徽章
+      const diffBadgesContainer = document.getElementById('diffBadges');
+      diffBadgesContainer.innerHTML = '';
+      const diffAchievements = [
+        { threshold: 1800, label: '小有存粮（30min存款）', icon: '🌾' },
+        { threshold: 3600, label: '半仓满盈（1h存款）', icon: '🌾' },
+        { threshold: 5400, label: '囤积成仓（1.5h存款）', icon: '🌾' },
+        { threshold: 7200, label: '谷堆满仓（2h存款）', icon: '🌾' },
+        { threshold: 10800, label: '富甲一方（3h存款）', icon: '🌾' },
+        { threshold: 14400, label: '金谷满仓（4h存款）', icon: '🌾' },
+        { threshold: 18000, label: '粮仓巨贾（5h存款）', icon: '🌾' },
+        { threshold: 21600, label: '谷满天下（6h存款）', icon: '🌾' },
+        { threshold: 25200, label: '五谷之皇（7h存款）', icon: '🌾' },
+        { threshold: 28800, label: '万仓之主（8h存款）', icon: '🌾' }
+      ];
+      diffAchievements.forEach(ach => {
+        const span = document.createElement('span');
+        span.className = 'badge' + (deposit >= ach.threshold ? ' active' : '');
+        span.textContent = `${ach.icon} ${ach.label}`;
+        diffBadgesContainer.appendChild(span);
+      });
+    }
+
+    function getHighest(value, achievements) {
+      let highest = null;
+      achievements.forEach(ach => {
+        if (value >= ach.threshold) highest = ach;
+      });
+      return highest ? `[${highest.label}]` : '';
+    }
+
+    function archiveAndRefresh() {
+      let workEvents = events.filter(e => e.type === 'work');
+      let playEvents = events.filter(e => e.type === 'play');
+      let workSum = workEvents.reduce((sum, e) => sum + e.value, 0);
+      let playSum = playEvents.reduce((sum, e) => sum + e.value, 0);
+      let profit = workSum - playSum;
+      
+      // 更新存款，将利润累加到存款
+      deposit += profit;
+      localStorage.setItem('deposit', deposit);
+      
+      const now = new Date();
+      const workAchievements = [
+        { threshold: 1800, label: '小试锋芒（30min工作）', icon: '🎖️' },
+        { threshold: 3600, label: '卧龙出山（1h工作）', icon: '🏅' },
+        { threshold: 7200, label: '双连！一战成名（2h工作）', icon: '🎖️' },
+        { threshold: 10800, label: '三连！举世皆惊（3h工作）', icon: '🏅' },
+        { threshold: 14400, label: '四连！天下无敌（4h工作）', icon: '🎖️' },
+        { threshold: 18000, label: '五连！诛天灭地（5h工作）', icon: '🏅' }
+      ];
+      const playAchievements = [
+        { threshold: 15 * 60, label: '一刻流芳（15min娱乐）', icon: '🎉' },
+        { threshold: 60 * 60, label: '时光荏苒（1h娱乐）', icon: '🎉' },
+        { threshold: 120 * 60, label: '心旷神怡（2h娱乐）', icon: '🎉' },
+        { threshold: 180 * 60, label: '其乐无穷（3h娱乐）', icon: '🎉' },
+        { threshold: 240 * 60, label: '畅快淋漓（4h娱乐）', icon: '🎉' },
+        { threshold: 300 * 60, label: '人间至乐（5h娱乐）', icon: '🎉' },
+        { threshold: 360 * 60, label: '浮生半日（6h娱乐）', icon: '🎉' },
+        { threshold: 480 * 60, label: '天人合一（8h娱乐）', icon: '🎉' }
+      ];
+      const profitAchievements = [
+        { threshold: 30 * 60, label: '一念之间（30min利润）', icon: '🎉' },
+        { threshold: 60 * 60, label: '宁静致远（1h利润）', icon: '🎉' },
+        { threshold: 120 * 60, label: '潜心笃行（2h利润）', icon: '🎉' },
+        { threshold: 240 * 60, label: '一心一意（4h利润）', icon: '🎉' },
+        { threshold: 300 * 60, label: '静水流深（5h利润）', icon: '🎉' },
+        { threshold: 360 * 60, label: '忘我专注（6h利润）', icon: '🎉' },
+        { threshold: 420 * 60, label: '如沐春风（7h利润）', icon: '🎉' },
+        { threshold: 480 * 60, label: '无我无境（8h利润）', icon: '🎉' }
+      ];
+      
+      const timeStr = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${now.getHours()}点${now.getMinutes()}分`;
+      const workBadge = getHighest(workSum, workAchievements);
+      const playBadge = getHighest(playSum, playAchievements);
+      const profitBadge = getHighest(profit, profitAchievements);
+      const highestBadges = `${workBadge}${playBadge}${profitBadge}`;
+      
+      const archiveEntry = {
+        time: timeStr,
+        timestamp: now.getTime(),
+        work: workSum,
+        play: playSum,
+        profit: profit,
+        highestBadges: highestBadges
+      };
+      
+      let archives = JSON.parse(localStorage.getItem('archives')) || [];
+      // 提取日期部分，例如“2023年8月1日”
+      const recordDate = timeStr.split('日')[0] + '日';
+      let found = archives.find(e => e.time.startsWith(recordDate));
+      
+      if (found) {
+        // 如果存在同一天记录，则合并数据
+        found.work += archiveEntry.work;
+        found.play += archiveEntry.play;
+        found.profit += archiveEntry.profit;
+        found.highestBadges =
+          getHighest(found.work, workAchievements) +
+          getHighest(found.play, playAchievements) +
+          getHighest(found.profit, profitAchievements);
+      } else {
+        archives.push(archiveEntry);
+      }
+      
+      localStorage.setItem('archives', JSON.stringify(archives));
+      // 保留存款事件与其他非工作娱乐事件，清除工作与娱乐事件
+      events = events.filter(e => e.type === 'surplus');
+      localStorage.setItem('events', JSON.stringify(events));
+      updateDisplay();
+    }
+
+
+    document.getElementById('workBtn').addEventListener('click', () => {
+      const amount = parseFloat(prompt('你工作了多少分钟？'));
+      if (!isNaN(amount) && amount > 0) {
+        events.push({type: 'work', value: amount * 60});
+        localStorage.setItem('events', JSON.stringify(events));
+        updateDisplay();
+      }
+    });
+
+    document.getElementById('playBtn').addEventListener('click', () => {
+      const amount = parseFloat(prompt('你娱乐了多少分钟？'));
+      if (!isNaN(amount) && amount > 0) {
+        events.push({type: 'play', value: amount * 60});
+        localStorage.setItem('events', JSON.stringify(events));
+        updateDisplay();
+      }
+    });
+
+    document.getElementById('refreshExprBtn').addEventListener('click', refreshExpressions);
+    document.getElementById('archiveAndRefreshBtn').addEventListener('click', archiveAndRefresh);
+    document.getElementById('viewStatsBtn').addEventListener('click', () => {
+      window.open('stats.html', '_blank');
+    });
+
+    function refreshExpressions() {
+      let totals = {work:0, play:0, surplus:0};
+      events.forEach(e => { totals[e.type] += e.value; });
+      events = events.filter(e => !['work','play','surplus'].includes(e.type));
+      ['work','play','surplus'].forEach(type => {
+        events.push({type, value: totals[type]});
+      });
+      if(workTimerStart !== null) {
+        currentWorkIndex = events.findIndex(e => e.type === 'work');
+      }
+      if(playTimerStart !== null) {
+        currentPlayIndex = events.findIndex(e => e.type === 'play');
+      }
+      localStorage.setItem('events', JSON.stringify(events));
+      updateDisplay();
+    }
+
+    function updateWorkTimer() {
+      if(workTimerStart !== null) {
+        let elapsed = Date.now() - workTimerStart;
+        let totalSeconds = Math.floor(elapsed / 1000);
+        let hours = Math.floor(totalSeconds / 3600);
+        let minutes = Math.floor((totalSeconds % 3600) / 60);
+        let seconds = totalSeconds % 60;
+        document.getElementById('workRealTime').textContent = `⏰ 工作中：${hours}h ${minutes}min ${seconds}s`;
+      }
+    }
+
+    function updatePlayTimer() {
+      if(playTimerStart !== null) {
+        let elapsed = Date.now() - playTimerStart;
+        let totalSeconds = Math.floor(elapsed / 1000);
+        let hours = Math.floor(totalSeconds / 3600);
+        let minutes = Math.floor((totalSeconds % 3600) / 60);
+        let seconds = totalSeconds % 60;
+        document.getElementById('playRealTime').textContent = `🎮 娱乐中：${hours}h ${minutes}min ${seconds}s`;
+      }
+    }
+
+    document.getElementById('startWorkBtn').addEventListener('click', () => {
+      if(workTimerStart === null) {
+        workTimerStart = Date.now();
+        lastWorkRecordTime = workTimerStart;
+        currentWorkIndex = events.length;
+        events.push({type: 'work', value: 0});
+        localStorage.setItem('events', JSON.stringify(events));
+        document.getElementById('startWorkBtn').disabled = true;
+        document.getElementById('stopWorkBtn').disabled = false;
+        document.getElementById('workRealTime').style.display = 'flex';
+        updateWorkTimer();
+        workInterval = setInterval(updateWorkTimer, 1000);
+        workRecordInterval = setInterval(() => {
+          let now = Date.now();
+          let elapsedSeconds = Math.round((now - lastWorkRecordTime) / 1000);
+          if(elapsedSeconds > 0) {
+            events[currentWorkIndex].value += elapsedSeconds;
+            localStorage.setItem('events', JSON.stringify(events));
+            updateDisplay();
+            lastWorkRecordTime = now;
+          }
+        }, 1000);
+      }
+    });
+
+    document.getElementById('stopWorkBtn').addEventListener('click', () => {
+      if(workTimerStart !== null) {
+        clearInterval(workInterval);
+        clearInterval(workRecordInterval);
+        workTimerStart = null;
+        document.getElementById('startWorkBtn').disabled = false;
+        document.getElementById('stopWorkBtn').disabled = true;
+        document.getElementById('workRealTime').style.display = 'none';
+        document.getElementById('workRealTime').textContent = '⏰ 工作中：0h 0min 0s';
+      }
+    });
+
+    document.getElementById('startPlayBtn').addEventListener('click', () => {
+      if(playTimerStart === null) {
+        playTimerStart = Date.now();
+        lastPlayRecordTime = playTimerStart;
+        currentPlayIndex = events.length;
+        events.push({type: 'play', value: 0});
+        localStorage.setItem('events', JSON.stringify(events));
+        document.getElementById('startPlayBtn').disabled = true;
+        document.getElementById('stopPlayBtn').disabled = false;
+        document.getElementById('playRealTime').style.display = 'flex';
+        updatePlayTimer();
+        playInterval = setInterval(updatePlayTimer, 1000);
+        playRecordInterval = setInterval(() => {
+          let now = Date.now();
+          let elapsedSeconds = Math.round((now - lastPlayRecordTime) / 1000);
+          if(elapsedSeconds > 0) {
+            events[currentPlayIndex].value += elapsedSeconds;
+            localStorage.setItem('events', JSON.stringify(events));
+            updateDisplay();
+            lastPlayRecordTime = now;
+          }
+        }, 1000);
+      }
+    });
+
+    document.getElementById('stopPlayBtn').addEventListener('click', () => {
+      if(playTimerStart !== null) {
+        clearInterval(playInterval);
+        clearInterval(playRecordInterval);
+        playTimerStart = null;
+        document.getElementById('startPlayBtn').disabled = false;
+        document.getElementById('stopPlayBtn').disabled = true;
+        document.getElementById('playRealTime').style.display = 'none';
+        document.getElementById('playRealTime').textContent = '🎮 娱乐中：0h 0min 0s';
+      }
+    });
+
+    updateDisplay();
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js')
+        .then(registration => console.log('Service Worker 注册成功:', registration))
+        .catch(error => console.log('Service Worker 注册失败:', error));
+    }
+  </script>
+</body>
+</html>

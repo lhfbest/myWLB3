@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>统计表格</title>
+  <style>
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #f0f0f0; }
+    button { cursor: pointer; margin-right: 10px; }
+    #manualInputBtn, #showChartBtn, #sortBtn, #exportBtn, #importBtn {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+    }
+    #chartContainer, #pieChartContainer {
+      margin-top: 40px;
+      display: none; /* 初始隐藏图表容器 */
+    }
+    canvas { width: 600px !important; height: 300px !important; }
+    /* 保证饼状图比例为1:1 */
+    #pieChartContainer canvas {
+       width: 300px !important;
+       height: 300px !important;
+    }
+  </style>
+  <!-- 引入Chart.js库 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h1>统计表格</h1>
+  <table id="statsTable">
+    <thead>
+      <tr>
+         <th>时间</th>
+         <th>工作时长</th>
+         <th>娱乐时长</th>
+         <th>利润</th>
+         <th>最高徽章</th>
+         <th>操作</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <button id="manualInputBtn">手动输入记录</button>
+  <button id="showChartBtn">显示图表</button>
+  <button id="sortBtn">日期排序</button>
+  <button id="exportBtn">表格导出</button>
+  <button id="importBtn">表格导入</button>
+  <input type="file" id="fileInput" style="display:none" accept=".csv"/>
+
+  <div id="chartContainer">
+    <canvas id="statsChart"></canvas>
+  </div>
+
+  <div id="pieChartContainer">
+    <canvas id="pieChart"></canvas>
+  </div>
+
+  <script>
+    // 成就数组定义
+    const workAchievements = [
+      { threshold: 1800, label: '小试锋芒（30min工作）', icon: '🎖️' },
+      { threshold: 3600, label: '卧龙出山（1h工作）', icon: '🏅' },
+      { threshold: 7200, label: '双连！一战成名（2h工作）', icon: '🎖️' },
+      { threshold: 10800, label: '三连！举世皆惊（3h工作）', icon: '🏅' },
+      { threshold: 14400, label: '四连！天下无敌（4h工作）', icon: '🎖️' },
+      { threshold: 18000, label: '五连！诛天灭地（5h工作）', icon: '🏅' }
+    ];
+    const playAchievements = [
+      { threshold: 15 * 60, label: '一刻流芳（15min娱乐）', icon: '🎉' },
+      { threshold: 60 * 60, label: '时光荏苒（1h娱乐）', icon: '🎉' },
+      { threshold: 120 * 60, label: '心旷神怡（2h娱乐）', icon: '🎉' },
+      { threshold: 180 * 60, label: '其乐无穷（3h娱乐）', icon: '🎉' },
+      { threshold: 240 * 60, label: '畅快淋漓（4h娱乐）', icon: '🎉' },
+      { threshold: 300 * 60, label: '人间至乐（5h娱乐）', icon: '🎉' },
+      { threshold: 360 * 60, label: '浮生半日（6h娱乐）', icon: '🎉' },
+      { threshold: 480 * 60, label: '天人合一（8h娱乐）', icon: '🎉' }
+    ];
+    const profitAchievements = [
+      { threshold: 30 * 60, label: '一念之间（30min利润）', icon: '🎉' },
+      { threshold: 60 * 60, label: '宁静致远（1h利润）', icon: '🎉' },
+      { threshold: 120 * 60, label: '潜心笃行（2h利润）', icon: '🎉' },
+      { threshold: 240 * 60, label: '一心一意（4h利润）', icon: '🎉' },
+      { threshold: 300 * 60, label: '静水流深（5h利润）', icon: '🎉' },
+      { threshold: 360 * 60, label: '忘我专注（6h利润）', icon: '🎉' },
+      { threshold: 420 * 60, label: '如沐春风（7h利润）', icon: '🎉' },
+      { threshold: 480 * 60, label: '无我无境（8h利润）', icon: '🎉' }
+    ];
+
+    function getHighest(value, achievements) {
+      let highest = null;
+      achievements.forEach(ach => {
+        if (value >= ach.threshold) highest = ach;
+      });
+      return highest ? `[${highest.label}]` : '';
+    }
+
+    function formatTime(totalSeconds) {
+      totalSeconds = Math.max(0, Math.round(totalSeconds));
+      let hours = Math.floor(totalSeconds / 3600);
+      let minutes = Math.floor((totalSeconds % 3600) / 60);
+      let seconds = totalSeconds % 60;
+      return `${hours}h ${minutes}min ${seconds}s`;
+    }
+
+    function formatProfit(totalSeconds) {
+      let sign = totalSeconds < 0 ? '-' : '';
+      totalSeconds = Math.abs(Math.round(totalSeconds));
+      let hours = Math.floor(totalSeconds / 3600);
+      let minutes = Math.floor((totalSeconds % 3600) / 60);
+      let seconds = totalSeconds % 60;
+      return `${sign}${hours}h ${minutes}min ${seconds}s`;
+    }
+
+    function parseDateOnly(timeStr) {
+      const regex = /(\d+)年(\d+)月(\d+)日/;
+      const match = timeStr.match(regex);
+      if (match) {
+        const [_, year, month, day] = match;
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      }
+      return new Date();
+    }
+
+    function loadArchives() {
+      return JSON.parse(localStorage.getItem('archives')) || [];
+    }
+
+    function saveArchives(archives) {
+      localStorage.setItem('archives', JSON.stringify(archives));
+    }
+
+    function updateTable() {
+      const archives = loadArchives();
+      const tbody = document.getElementById('statsTable').getElementsByTagName('tbody')[0];
+      tbody.innerHTML = '';
+      archives.forEach((entry, index) => {
+        let profit = entry.work - entry.play;
+        let workBadge = getHighest(entry.work, workAchievements);
+        let playBadge = getHighest(entry.play, playAchievements);
+        let profitBadge = getHighest(profit, profitAchievements);
+        let highestBadges = `${workBadge}${playBadge}${profitBadge}`;
+
+        let tr = document.createElement('tr');
+        tr.innerHTML = `<td>${entry.time}</td>
+           <td>${formatTime(entry.work)}</td>
+           <td>${formatTime(entry.play)}</td>
+           <td>${formatProfit(profit)}</td>
+           <td>${highestBadges}</td>
+           <td>
+             <button onclick="modifyRecord(${index})">修改</button>
+             <button onclick="deleteRecord(${index})">删除</button>
+           </td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function manualInputRecord() {
+      const time = prompt("请输入时间（例如：2023年8月1日 10点30分）：");
+      if (!time) return;
+      const workInput = prompt("请输入工作时长（分钟）：");
+      const playInput = prompt("请输入娱乐时长（分钟）：");
+      const work = (parseFloat(workInput) || 0) * 60;
+      const play = (parseFloat(playInput) || 0) * 60;
+      const profit = work - play;
+      const parsedDate = parseDateOnly(time);
+      const archiveEntry = {
+        time,
+        timestamp: parsedDate.getTime(),
+        work,
+        play,
+        profit,
+        highestBadges: ''
+      };
+      let archives = loadArchives();
+      archives.push(archiveEntry);
+      saveArchives(archives);
+      updateTable();
+      if (chartInitialized) {
+        updateChart();
+        updatePieChart();
+      }
+    }
+
+    document.getElementById('manualInputBtn').addEventListener('click', manualInputRecord);
+
+    function modifyRecord(index) {
+      let archives = loadArchives();
+      let entry = archives[index];
+      if (!entry) return;
+      const newTime = prompt("修改时间：", entry.time) || entry.time;
+      const newWork = (parseFloat(prompt("修改工作时长（分钟）：", entry.work / 60)) || (entry.work / 60)) * 60;
+      const newPlay = (parseFloat(prompt("修改娱乐时长（分钟）：", entry.play / 60)) || (entry.play / 60)) * 60;
+      const newTimeDate = parseDateOnly(newTime);
+      entry.time = newTime;
+      entry.timestamp = newTimeDate.getTime();
+      entry.work = newWork;
+      entry.play = newPlay;
+      entry.profit = newWork - newPlay;
+      saveArchives(archives);
+      updateTable();
+      if (chartInitialized) {
+        updateChart();
+        updatePieChart();
+      }
+    }
+
+    function deleteRecord(index) {
+      let archives = loadArchives();
+      if (index < 0 || index >= archives.length) return;
+      if (confirm("确定要删除此记录吗？")) {
+        archives.splice(index, 1);
+        saveArchives(archives);
+        updateTable();
+        if (chartInitialized) {
+          updateChart();
+          updatePieChart();
+        }
+      }
+    }
+
+    function sortByDate() {
+      let archives = loadArchives();
+      archives.sort((a, b) => {
+        let ta = parseDateOnly(a.time).getTime();
+        let tb = parseDateOnly(b.time).getTime();
+        return ta - tb;
+      });
+      saveArchives(archives);
+      updateTable();
+      if(chartInitialized) {
+        updateChart();
+        updatePieChart();
+      }
+    }
+
+    document.getElementById('sortBtn').addEventListener('click', sortByDate);
+
+    updateTable();
+
+    // 图表部分
+    let statsChart;
+    let chartInitialized = false;
+
+    function groupDataByDate(archives) {
+      const grouped = {};
+      archives.forEach(entry => {
+        const d = parseDateOnly(entry.time);
+        const dateStr = d.toISOString().split('T')[0];
+        if (!grouped[dateStr]) {
+          grouped[dateStr] = { work: 0, play: 0, profit: 0 };
+        }
+        grouped[dateStr].work += entry.work;
+        grouped[dateStr].play += entry.play;
+        grouped[dateStr].profit += entry.profit;
+      });
+      return grouped;
+    }
+
+    function updateChart() {
+      const archives = loadArchives();
+      if (archives.length === 0) return;
+      const grouped = groupDataByDate(archives);
+
+      let latest = new Date(Math.max(...archives.map(a => parseDateOnly(a.time).getTime())));
+      latest.setHours(0,0,0,0);
+      const oneDayMs = 24*3600*1000;
+      const dates = [];
+      for (let i = 29; i >= 0; i--) {
+        let d = new Date(latest.getTime() - i * oneDayMs);
+        d.setDate(d.getDate() + 1);
+        dates.push(d.toISOString().split('T')[0]);
+      }
+
+      const workData = [];
+      const playData = [];
+      const profitData = [];
+      dates.forEach(date => {
+        let dayData = grouped[date] || { work: 0, play: 0, profit: 0 };
+        workData.push(dayData.work);
+        playData.push(dayData.play);
+        profitData.push(dayData.profit);
+      });
+
+      const ctx = document.getElementById('statsChart').getContext('2d');
+      const chartData = {
+        labels: dates,
+        datasets: [
+          {
+            label: '工作时长',
+            data: workData,
+            backgroundColor: 'rgba(75, 192, 192, 0.5)'
+          },
+          {
+            label: '娱乐时长',
+            data: playData,
+            backgroundColor: 'rgba(192, 75, 192, 0.5)'
+          },
+          {
+            label: '利润',
+            data: profitData,
+            backgroundColor: 'rgba(192, 192, 75, 0.5)'
+          }
+        ]
+      };
+      const config = {
+        type: 'bar',
+        data: chartData,
+        options: {
+          scales: {
+            x: { title: { display: true, text: '日期' } },
+            y: { title: { display: true, text: '秒数' } }
+          }
+        }
+      };
+
+      if(statsChart) { statsChart.destroy(); }
+      statsChart = new Chart(ctx, config);
+      chartInitialized = true;
+    }
+
+    document.getElementById('showChartBtn').addEventListener('click', () => {
+      document.getElementById('chartContainer').style.display = 'block';
+      updateChart();
+      updatePieChart();
+    });
+
+    function exportTable() {
+      const archives = loadArchives();
+      if (archives.length === 0) { alert("没有数据可导出"); return; }
+      let csvContent = "\uFEFF";
+      csvContent += "时间,工作时长（秒）,娱乐时长（秒）,利润（秒）,最高徽章\n";
+      archives.forEach(entry => {
+        csvContent += `${entry.time},${entry.work},${entry.play},${entry.profit},${entry.highestBadges}\n`;
+      });
+      const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "统计记录.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    document.getElementById('exportBtn').addEventListener('click', exportTable);
+
+    function importTable(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const text = e.target.result;
+        const lines = text.split('\n');
+        let archives = loadArchives();
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',');
+          if (cols.length < 5) continue;
+          const [time, work, play, profit, highestBadges] = cols;
+          const parsedDate = parseDateOnly(time);
+          archives.push({
+            time: time,
+            timestamp: parsedDate.getTime(),
+            work: parseFloat(work) || 0,
+            play: parseFloat(play) || 0,
+            profit: parseFloat(profit) || 0,
+            highestBadges: highestBadges || ''
+          });
+        }
+        saveArchives(archives);
+        updateTable();
+        if(chartInitialized) {
+          updateChart();
+          updatePieChart();
+        }
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+    document.getElementById('importBtn').addEventListener('click', () => {
+      document.getElementById('fileInput').click();
+    });
+    document.getElementById('fileInput').addEventListener('change', importTable);
+
+    // 饼状图部分
+    let pieChart;
+    function updatePieChart() {
+      const archives = loadArchives();
+      if (archives.length === 0) return;
+      const grouped = groupDataByDate(archives);
+
+      let totalWork = 0, totalPlay = 0;
+      for (let key in grouped) {
+        totalWork += grouped[key].work;
+        totalPlay += grouped[key].play;
+      }
+      const ctxPie = document.getElementById('pieChart').getContext('2d');
+      const data = {
+        labels: ['工作时长', '娱乐时长'],
+        datasets: [{
+          data: [totalWork, totalPlay],
+          backgroundColor: [
+            'rgba(75, 192, 192, 0.5)',
+            'rgba(192, 75, 192, 0.5)'
+          ]
+        }]
+      };
+      if(pieChart) { pieChart.destroy(); }
+      pieChart = new Chart(ctxPie, {
+        type: 'pie',
+        data: data,
+        options: {
+          plugins: {
+            title: {
+              display: true,
+              text: '近一个月 工作时长与娱乐时长比例'
+            }
+          }
+        }
+      });
+      document.getElementById('pieChartContainer').style.display = 'block';
+    }
+  </script>
+</body>
+</html>
