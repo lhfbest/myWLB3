@@ -1,4 +1,4 @@
-<!DOCTYPE html>  
+<!DOCTYPE html>   
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -250,8 +250,15 @@
       // 从统计档案中计算存款（所有利润之和）
       let archives = JSON.parse(localStorage.getItem('archives')) || [];
       let deposit = archives.reduce((sum, a) => sum + a.profit, 0);
-      
       document.getElementById('depositDisplay').textContent = `存款: ${formatTime(deposit)}`;
+
+      // 获取当天的记录数据
+      const now = new Date();
+      const recordDate = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
+      let todayRecord = archives.find(e => e.time.startsWith(recordDate));
+      let workToday = todayRecord ? todayRecord.work : 0;
+      let playToday = todayRecord ? todayRecord.play : 0;
+      let profitToday = todayRecord ? todayRecord.profit : 0;
 
       // 更新工作时长成就徽章
       const badgesContainer = document.getElementById('badges');
@@ -266,7 +273,7 @@
       ];
       workAchievements.forEach(ach => {
         const span = document.createElement('span');
-        span.className = 'badge' + (workSum >= ach.threshold ? ' active' : '');
+        span.className = 'badge' + (workToday >= ach.threshold ? ' active' : '');
         span.textContent = `${ach.icon} ${ach.label}`;
         badgesContainer.appendChild(span);
       });
@@ -286,7 +293,7 @@
       ];
       playAchievements.forEach(ach => {
         const span = document.createElement('span');
-        span.className = 'badge' + (playSum >= ach.threshold ? ' active' : '');
+        span.className = 'badge' + (playToday >= ach.threshold ? ' active' : '');
         span.textContent = `${ach.icon} ${ach.label}`;
         playBadgesContainer.appendChild(span);
       });
@@ -306,7 +313,7 @@
       ];
       profitAchievements.forEach(ach => {
         const span = document.createElement('span');
-        span.className = 'badge' + (profit >= ach.threshold ? ' active' : '');
+        span.className = 'badge' + (profitToday >= ach.threshold ? ' active' : '');
         span.textContent = `${ach.icon} ${ach.label}`;
         profitBadgesContainer.appendChild(span);
       });
