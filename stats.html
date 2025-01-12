@@ -6,7 +6,7 @@
   <title>统计表格</title>
   <style>
     table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; vertical-align: middle; }
     th { background: #f0f0f0; }
     button { cursor: pointer; margin-right: 10px; }
     #manualInputBtn, #showChartBtn, #sortBtn, #exportBtn, #importBtn {
@@ -23,6 +23,13 @@
     #pieChartContainer canvas {
        width: 300px !important;
        height: 300px !important;
+    }
+
+    /* 图片展示固定尺寸 */
+    #statsTable img {
+      width: 50px;
+      height: 50px;
+      object-fit: contain;
     }
 
     /* 响应式调整 */
@@ -164,7 +171,11 @@
         let workBadge = getHighest(entry.work, workAchievements);
         let playBadge = getHighest(entry.play, playAchievements);
         let profitBadge = getHighest(profit, profitAchievements);
-        let highestBadges = `${workBadge}${playBadge}${profitBadge}`;
+        let badgesList = [];
+        if(workBadge) badgesList.push(workBadge);
+        if(playBadge) badgesList.push(playBadge);
+        if(profitBadge) badgesList.push(profitBadge);
+        let highestBadges = badgesList.join('<br>');
 
         let tr = document.createElement('tr');
         tr.innerHTML = `<td>${entry.time}</td>
