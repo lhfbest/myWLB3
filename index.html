@@ -112,17 +112,18 @@
       display: inline-block;
       margin: 5px 5px 5px 0;
       padding: 5px 10px;
-      border: 1px solid #ccc;
+      border: 2px solid #ccc; /* 默认浅灰色边框 */
       border-radius: 5px;
-      background: #eee;
+      background: none; /* 未激活时无背景色 */
       font-size: 14px;
       opacity: 0.5;
-      transition: opacity 0.3s, font-weight 0.3s;
+      transition: opacity 0.3s, font-weight 0.3s, border-color 0.3s;
     }
     .badge.active {
       opacity: 1;
       font-weight: bold;
     }
+    #obtainedBadgesContainer, 
     #badgesContainer, 
     #playBadgesContainer, 
     #profitBadgesContainer,
@@ -179,21 +180,27 @@
     </div>
   </div>
   
+  <!-- 将“今日成就徽章”展示栏放置在“利润”表达式下方 -->
+  <div id="obtainedBadgesContainer">
+    <p>今日成就徽章</p>
+    <div id="obtainedBadges"></div>
+  </div>
+  
   <!-- 徽章区域 -->
   <div id="badgesContainer">
-    <p>今日工作时长成就徽章</p>
+    <p>工作时长成就徽章</p>
     <div id="badges"></div>
   </div>
   <div id="playBadgesContainer">
-    <p>今日娱乐时长成就徽章</p>
+    <p>娱乐时长成就徽章</p>
     <div id="playBadges"></div>
   </div>
   <div id="profitBadgesContainer">
-    <p>今日利润成就徽章</p>
+    <p>利润成就徽章</p>
     <div id="profitBadges"></div>
   </div>
   <div id="diffBadgesContainer">
-    <p>总存款成就徽章</p>
+    <p>存款成就徽章</p>
     <div id="diffBadges"></div>
   </div>
   
@@ -232,7 +239,59 @@
       return `${sign}${hours}h ${minutes}min ${seconds}s`;
     }
 
+    // 根据阈值返回对应的边框颜色
+    function getBadgeColor(threshold) {
+      if (threshold === 1800 || threshold < 7200) return 'white';     // 30min 和 1h
+      else if (threshold === 7200) return 'green';                     // 2h
+      else if (threshold === 10800) return 'blue';                     // 3h
+      else if (threshold === 14400) return 'purple';                   // 4h
+      else if (threshold === 18000) return 'orange';                   // 5h
+      else return 'transparent'; 
+    }
+
     function updateDisplay() {
+      // 定义成就数组
+      const workAchievements = [
+        { threshold: 1800, label: '小试锋芒（30min工作）', icon: '🎖️', type: 'work' },
+        { threshold: 3600, label: '卧龙出山（1h工作）', icon: '🏅', type: 'work' },
+        { threshold: 7200, label: '双连！一战成名（2h工作）', icon: '🎖️', type: 'work' },
+        { threshold: 10800, label: '三连！举世皆惊（3h工作）', icon: '🏅', type: 'work' },
+        { threshold: 14400, label: '四连！天下无敌（4h工作）', icon: '🎖️', type: 'work' },
+        { threshold: 18000, label: '五连！诛天灭地（5h工作）', icon: '🏅', type: 'work' }
+      ];
+      const playAchievements = [
+        { threshold: 15 * 60, label: '一刻流芳（15min娱乐）', icon: '🎉', type: 'play' },
+        { threshold: 60 * 60, label: '时光荏苒（1h娱乐）', icon: '🎉', type: 'play' },
+        { threshold: 120 * 60, label: '心旷神怡（2h娱乐）', icon: '🎉', type: 'play' },
+        { threshold: 180 * 60, label: '其乐无穷（3h娱乐）', icon: '🎉', type: 'play' },
+        { threshold: 240 * 60, label: '畅快淋漓（4h娱乐）', icon: '🎉', type: 'play' },
+        { threshold: 300 * 60, label: '人间至乐（5h娱乐）', icon: '🎉', type: 'play' },
+        { threshold: 360 * 60, label: '浮生半日（6h娱乐）', icon: '🎉', type: 'play' },
+        { threshold: 480 * 60, label: '天人合一（8h娱乐）', icon: '🎉', type: 'play' }
+      ];
+      const profitAchievements = [
+        { threshold: 30 * 60, label: '一念之间（30min利润）', icon: '🎉', type: 'profit' },
+        { threshold: 60 * 60, label: '宁静致远（1h利润）', icon: '🎉', type: 'profit' },
+        { threshold: 120 * 60, label: '潜心笃行（2h利润）', icon: '🎉', type: 'profit' },
+        { threshold: 240 * 60, label: '一心一意（4h利润）', icon: '🎉', type: 'profit' },
+        { threshold: 300 * 60, label: '静水流深（5h利润）', icon: '🎉', type: 'profit' },
+        { threshold: 360 * 60, label: '忘我专注（6h利润）', icon: '🎉', type: 'profit' },
+        { threshold: 420 * 60, label: '如沐春风（7h利润）', icon: '🎉', type: 'profit' },
+        { threshold: 480 * 60, label: '无我无境（8h利润）', icon: '🎉', type: 'profit' }
+      ];
+      const diffAchievements = [
+        { threshold: 1800, label: '小有存粮（30min存款）', icon: '🌾', type: 'deposit' },
+        { threshold: 3600, label: '半仓满盈（1h存款）', icon: '🌾', type: 'deposit' },
+        //{ threshold: 5400, label: '囤积成仓（1.5h存款）', icon: '🌾', type: 'deposit' },
+        { threshold: 7200, label: '谷堆满仓（2h存款）', icon: '🌾', type: 'deposit' },
+        { threshold: 10800, label: '富甲一方（3h存款）', icon: '🌾', type: 'deposit' },
+        { threshold: 14400, label: '金谷满仓（4h存款）', icon: '🌾', type: 'deposit' },
+        { threshold: 18000, label: '粮仓巨贾（5h存款）', icon: '🌾', type: 'deposit' },
+        { threshold: 21600, label: '谷满天下（6h存款）', icon: '🌾', type: 'deposit' },
+        { threshold: 25200, label: '五谷之皇（7h存款）', icon: '🌾', type: 'deposit' },
+        { threshold: 28800, label: '万仓之主（8h存款）', icon: '🌾', type: 'deposit' }
+      ];
+
       let workEvents = events.filter(e => e.type === 'work');
       let playEvents = events.filter(e => e.type === 'play');
       let surplusEvents = events.filter(e => e.type === 'surplus');
@@ -260,83 +319,76 @@
       let playToday = todayRecord ? todayRecord.play : 0;
       let profitToday = todayRecord ? todayRecord.profit : 0;
 
+      // 更新“今日成就徽章”展示栏
+      const obtainedBadgesContainer = document.getElementById('obtainedBadges');
+      obtainedBadgesContainer.innerHTML = '';
+      const allAchievements = [
+        ...workAchievements,
+        ...playAchievements,
+        ...profitAchievements,
+        ...diffAchievements
+      ];
+      allAchievements.forEach(ach => {
+        let conditionMet = false;
+        if(ach.type === 'work' && workToday >= ach.threshold) conditionMet = true;
+        if(ach.type === 'play' && playToday >= ach.threshold) conditionMet = true;
+        if(ach.type === 'profit' && profitToday >= ach.threshold) conditionMet = true;
+        if(ach.type === 'deposit' && deposit >= ach.threshold) conditionMet = true;
+        if(conditionMet) {
+          const span = document.createElement('span');
+          span.className = 'badge active';
+          span.textContent = `${ach.icon} ${ach.label}`;
+          // 若阈值<=5400，则设置深灰色边框，否则使用对应颜色
+          span.style.borderColor = (ach.threshold <= 5400) ? 'darkgray' : getBadgeColor(ach.threshold);
+          obtainedBadgesContainer.appendChild(span);
+        }
+      });
+
       // 更新工作时长成就徽章
       const badgesContainer = document.getElementById('badges');
       badgesContainer.innerHTML = '';
-      const workAchievements = [
-        { threshold: 1800, label: '小试锋芒（30min工作）', icon: '🎖️' },
-        { threshold: 3600, label: '卧龙出山（1h工作）', icon: '🏅' },
-        { threshold: 7200, label: '双连！一战成名（2h工作）', icon: '🎖️' },
-        { threshold: 10800, label: '三连！举世皆惊（3h工作）', icon: '🏅' },
-        { threshold: 14400, label: '四连！天下无敌（4h工作）', icon: '🎖️' },
-        { threshold: 18000, label: '五连！诛天灭地（5h工作）', icon: '🏅' }
-      ];
       workAchievements.forEach(ach => {
+        const conditionMet = workToday >= ach.threshold;
         const span = document.createElement('span');
-        span.className = 'badge' + (workToday >= ach.threshold ? ' active' : '');
+        span.className = 'badge' + (conditionMet ? ' active' : '');
         span.textContent = `${ach.icon} ${ach.label}`;
+        span.style.borderColor = conditionMet ? ((ach.threshold <= 3600) ? 'darkgray' : getBadgeColor(ach.threshold)) : '#ccc';
         badgesContainer.appendChild(span);
       });
 
       // 更新娱乐时长成就徽章
       const playBadgesContainer = document.getElementById('playBadges');
       playBadgesContainer.innerHTML = '';
-      const playAchievements = [
-        { threshold: 15 * 60, label: '一刻流芳（15min娱乐）', icon: '🎉' },
-        { threshold: 60 * 60, label: '时光荏苒（1h娱乐）', icon: '🎉' },
-        { threshold: 120 * 60, label: '心旷神怡（2h娱乐）', icon: '🎉' },
-        { threshold: 180 * 60, label: '其乐无穷（3h娱乐）', icon: '🎉' },
-        { threshold: 240 * 60, label: '畅快淋漓（4h娱乐）', icon: '🎉' },
-        { threshold: 300 * 60, label: '人间至乐（5h娱乐）', icon: '🎉' },
-        { threshold: 360 * 60, label: '浮生半日（6h娱乐）', icon: '🎉' },
-        { threshold: 480 * 60, label: '天人合一（8h娱乐）', icon: '🎉' }
-      ];
       playAchievements.forEach(ach => {
+        const conditionMet = playToday >= ach.threshold;
         const span = document.createElement('span');
-        span.className = 'badge' + (playToday >= ach.threshold ? ' active' : '');
+        span.className = 'badge' + (conditionMet ? ' active' : '');
         span.textContent = `${ach.icon} ${ach.label}`;
+        span.style.borderColor = conditionMet ? ((ach.threshold <= 3600) ? 'darkgray' : getBadgeColor(ach.threshold)) : '#ccc';
         playBadgesContainer.appendChild(span);
       });
 
       // 更新利润成就徽章
       const profitBadgesContainer = document.getElementById('profitBadges');
       profitBadgesContainer.innerHTML = '';
-      const profitAchievements = [
-        { threshold: 30 * 60, label: '一念之间（30min利润）', icon: '🎉' },
-        { threshold: 60 * 60, label: '宁静致远（1h利润）', icon: '🎉' },
-        { threshold: 120 * 60, label: '潜心笃行（2h利润）', icon: '🎉' },
-        { threshold: 240 * 60, label: '一心一意（4h利润）', icon: '🎉' },
-        { threshold: 300 * 60, label: '静水流深（5h利润）', icon: '🎉' },
-        { threshold: 360 * 60, label: '忘我专注（6h利润）', icon: '🎉' },
-        { threshold: 420 * 60, label: '如沐春风（7h利润）', icon: '🎉' },
-        { threshold: 480 * 60, label: '无我无境（8h利润）', icon: '🎉' }
-      ];
       profitAchievements.forEach(ach => {
+        const conditionMet = profitToday >= ach.threshold;
         const span = document.createElement('span');
-        span.className = 'badge' + (profitToday >= ach.threshold ? ' active' : '');
+        span.className = 'badge' + (conditionMet ? ' active' : '');
         span.textContent = `${ach.icon} ${ach.label}`;
+        span.style.borderColor = conditionMet ? ((ach.threshold <= 3600) ? 'darkgray' : getBadgeColor(ach.threshold)) : '#ccc';
         profitBadgesContainer.appendChild(span);
       });
 
       // 更新存款成就徽章
       const diffBadgesContainer = document.getElementById('diffBadges');
       diffBadgesContainer.innerHTML = '';
-      const diffAchievements = [
-        { threshold: 1800, label: '小有存粮（30min存款）', icon: '🌾' },
-        { threshold: 3600, label: '半仓满盈（1h存款）', icon: '🌾' },
-        { threshold: 5400, label: '囤积成仓（1.5h存款）', icon: '🌾' },
-        { threshold: 7200, label: '谷堆满仓（2h存款）', icon: '🌾' },
-        { threshold: 10800, label: '富甲一方（3h存款）', icon: '🌾' },
-        { threshold: 14400, label: '金谷满仓（4h存款）', icon: '🌾' },
-        { threshold: 18000, label: '粮仓巨贾（5h存款）', icon: '🌾' },
-        { threshold: 21600, label: '谷满天下（6h存款）', icon: '🌾' },
-        { threshold: 25200, label: '五谷之皇（7h存款）', icon: '🌾' },
-        { threshold: 28800, label: '万仓之主（8h存款）', icon: '🌾' }
-      ];
       diffAchievements.forEach(ach => {
+        const conditionMet = deposit >= ach.threshold;
         const span = document.createElement('span');
-        span.className = 'badge' + (deposit >= ach.threshold ? ' active' : '');
+        span.className = 'badge' + (conditionMet ? ' active' : '');
         span.textContent = `${ach.icon} ${ach.label}`;
+        span.style.borderColor = conditionMet ? ((ach.threshold <= 3600) ? 'darkgray' : getBadgeColor(ach.threshold)) : '#ccc';
         diffBadgesContainer.appendChild(span);
       });
     }
