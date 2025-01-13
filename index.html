@@ -1,4 +1,4 @@
-<!DOCTYPE html>   
+<!DOCTYPE html>    
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -110,11 +110,11 @@
     /* 徽章样式 */
     .badge {
       display: inline-block;
-      margin: 5px 5px 5px 0;
-      padding: 5px 10px;
+      margin: 2px;
+      padding: 5px 8px;
       border: 2px solid #ccc; /* 默认浅灰色边框 */
       border-radius: 5px;
-      background: none; /* 未激活时无背景色 */
+      background: none;
       font-size: 14px;
       opacity: 0.5;
       transition: opacity 0.3s, font-weight 0.3s, border-color 0.3s;
@@ -123,6 +123,20 @@
       opacity: 1;
       font-weight: bold;
     }
+    /* 紧凑排列徽章 */
+    #obtainedBadgesContainer div {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    #obtainedBadgesContainer h3 {
+      margin: 5px 0;
+      font-size: 16px;
+    }
+    #obtainedBadgesContainer hr {
+      margin: 4px 0;
+    }
+    /* 区域边距 */
     #obtainedBadgesContainer, 
     #badgesContainer, 
     #playBadgesContainer, 
@@ -131,6 +145,32 @@
       margin-top: 20px;
       padding: 10px;
       border-top: 1px solid #ccc;
+    }
+    /* 今日数据栏目样式 */
+    #todaySummary {
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      background: #fdfdfd;
+    }
+    #todaySummary p {
+      margin: 5px 0;
+      font-size: 16px;
+    }
+    /* 图表样式 */
+    #todayChart, #pieChart {
+      display: block;
+      margin: 20px auto;
+      border: 1px solid #ccc;
+      background: #fff;
+    }
+    /* 容纳图表的容器 */
+    #chartContainer {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
     }
   </style>
 </head>
@@ -147,7 +187,7 @@
       <button id="startPlayBtn">开始娱乐</button>
       <button id="stopPlayBtn" disabled>停止娱乐</button>
     </div>
-    <!-- 数据与统计组 -->
+    <!-- 数据与统计组样式 -->
     <div class="button-group data-group">
       <button id="workBtn">手输工作时长</button>
       <button id="playBtn">手输娱乐时长</button>
@@ -173,6 +213,20 @@
     <p>工作时长:<br><span id="workTime">0h 0min 0s</span></p>
     <p>娱乐时长:<br><span id="playTime">0h 0min 0s</span></p>
     <p>利润:<br><span id="profitTime">0h 0min 0s</span></p>
+
+    <!-- 新增今日总结栏目 -->
+    <hr>
+    <h2 style="text-align:center;">今日数据</h2>
+    <div id="todaySummary">
+      <p>今日工作时长：<span id="todayWorkTime">0h 0min 0s</span></p>
+      <p>今日娱乐时长：<span id="todayPlayTime">0h 0min 0s</span></p>
+      <p>今日利润：<span id="todayProfit">0h 0min 0s</span></p>
+    </div>
+    <div id="chartContainer">
+      <canvas id="todayChart" width="300" height="150"></canvas>
+      <canvas id="pieChart" width="150" height="150"></canvas>
+    </div>
+
     <div id="currentTimers" style="display:none;">
       <!-- 隐藏原有的实时计时显示元素 -->
       <p id="currentWorkTimer">工作中：0h 0min 0s</p>
@@ -183,7 +237,7 @@
   <!-- 将“今日成就徽章”展示栏放置在“利润”表达式下方 -->
   <div id="obtainedBadgesContainer">
     <p>今日成就徽章</p>
-    <div id="obtainedBadges"></div>
+    <!-- 徽章分门别类显示区域将由JS动态生成 -->
   </div>
   
   <!-- 徽章区域 -->
@@ -239,19 +293,31 @@
       return `${sign}${hours}h ${minutes}min ${seconds}s`;
     }
 
-    // 根据阈值返回对应的边框颜色
+    // 根据阈值返回对应的边框颜色，使用区间判定
     function getBadgeColor(threshold) {
-      if (threshold === 1800 || threshold < 7200) return 'white';     // 30min 和 1h
-      else if (threshold === 7200) return 'green';                     // 2h
-      else if (threshold === 10800) return 'blue';                     // 3h
-      else if (threshold === 14400) return 'purple';                   // 4h
-      else if (threshold === 18000) return 'orange';                   // 5h
-      else return 'transparent'; 
+      if(threshold <= 3600) return 'white';                 
+      else if(threshold > 3600 && threshold <= 7200) return 'green';    
+      else if(threshold > 7200 && threshold <= 10800) return 'blue';    
+      else if(threshold > 10800 && threshold <= 14400) return 'purple'; 
+      else if(threshold > 14400) return 'orange';        
+      else return 'transparent';
+    }
+
+    // 样式化徽章以体现等级差异
+    function styleBadge(span, ach) {
+      let color = getBadgeColor(ach.threshold);
+      span.style.borderColor = (ach.threshold <= 5400) ? 'darkgray' : color;
+      if(color === 'white') { span.style.backgroundColor = '#eee'; span.style.fontSize = '14px'; }
+      else if(color === 'green') { span.style.backgroundColor = '#cfc'; span.style.fontSize = '16px'; }
+      else if(color === 'blue') { span.style.backgroundColor = '#ccf'; span.style.fontSize = '18px'; }
+      else if(color === 'purple') { span.style.backgroundColor = '#e0ccff'; span.style.fontSize = '20px'; }
+      else if(color === 'orange') { span.style.backgroundColor = '#ffe0b3'; span.style.fontSize = '22px'; }
     }
 
     function updateDisplay() {
-      // 定义成就数组
+      // 定义成就数组，包括新增的1min工作成就
       const workAchievements = [
+        { threshold: 60, label: '好过没有（1min工作）', icon: '🆕', type: 'work' },
         { threshold: 1800, label: '小试锋芒（30min工作）', icon: '🎖️', type: 'work' },
         { threshold: 3600, label: '卧龙出山（1h工作）', icon: '🏅', type: 'work' },
         { threshold: 7200, label: '双连！一战成名（2h工作）', icon: '🎖️', type: 'work' },
@@ -282,7 +348,6 @@
       const diffAchievements = [
         { threshold: 1800, label: '小有存粮（30min存款）', icon: '🌾', type: 'deposit' },
         { threshold: 3600, label: '半仓满盈（1h存款）', icon: '🌾', type: 'deposit' },
-        //{ threshold: 5400, label: '囤积成仓（1.5h存款）', icon: '🌾', type: 'deposit' },
         { threshold: 7200, label: '谷堆满仓（2h存款）', icon: '🌾', type: 'deposit' },
         { threshold: 10800, label: '富甲一方（3h存款）', icon: '🌾', type: 'deposit' },
         { threshold: 14400, label: '金谷满仓（4h存款）', icon: '🌾', type: 'deposit' },
@@ -306,12 +371,10 @@
       document.getElementById('playTime').innerHTML = `${playExpr}<br>= ${formatTime(playSum)}`;
       document.getElementById('profitTime').innerHTML = `= ${formatTime(profit)}`;
 
-      // 从统计档案中计算存款（所有利润之和）
       let archives = JSON.parse(localStorage.getItem('archives')) || [];
       let deposit = archives.reduce((sum, a) => sum + a.profit, 0);
       document.getElementById('depositDisplay').textContent = `存款: ${formatTime(deposit)}`;
 
-      // 获取当天的记录数据
       const now = new Date();
       const recordDate = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
       let todayRecord = archives.find(e => e.time.startsWith(recordDate));
@@ -319,32 +382,132 @@
       let playToday = todayRecord ? todayRecord.play : 0;
       let profitToday = todayRecord ? todayRecord.profit : 0;
 
-      // 更新“今日成就徽章”展示栏
-      const obtainedBadgesContainer = document.getElementById('obtainedBadges');
-      obtainedBadgesContainer.innerHTML = '';
+      document.getElementById('todayWorkTime').textContent = formatTime(workToday);
+      document.getElementById('todayPlayTime').textContent = formatTime(playToday);
+      document.getElementById('todayProfit').textContent = formatTime(profitToday);
+
+      // 绘制柱状图
+      let canvas = document.getElementById('todayChart');
+      if(canvas.getContext) {
+        let ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let maxVal = Math.max(workToday, playToday, profitToday, 3600);
+        let barWidth = 50;
+        let spacing = 20;
+        let chartHeight = canvas.height - 30;
+        let x = spacing;
+        
+        ctx.font = "12px Arial";
+        ctx.textAlign = "center";
+        
+        // 工作时长柱状图
+        let workBarHeight = (workToday / maxVal) * chartHeight;
+        ctx.fillStyle = 'steelblue';
+        ctx.fillRect(x, canvas.height - workBarHeight, barWidth, workBarHeight);
+        ctx.fillStyle = '#000';
+        ctx.fillText(formatTime(workToday), x + barWidth/2, canvas.height - workBarHeight - 5);
+        ctx.fillText('工作', x + barWidth/2, canvas.height - 2);
+        x += barWidth + spacing;
+        
+        // 娱乐时长柱状图
+        let playBarHeight = (playToday / maxVal) * chartHeight;
+        ctx.fillStyle = 'tomato';
+        ctx.fillRect(x, canvas.height - playBarHeight, barWidth, playBarHeight);
+        ctx.fillStyle = '#000';
+        ctx.fillText(formatTime(playToday), x + barWidth/2, canvas.height - playBarHeight - 5);
+        ctx.fillText('娱乐', x + barWidth/2, canvas.height - 2);
+        x += barWidth + spacing;
+        
+        // 利润柱状图
+        let profitBarHeight = (profitToday / maxVal) * chartHeight;
+        ctx.fillStyle = 'gold';
+        ctx.fillRect(x, canvas.height - profitBarHeight, barWidth, profitBarHeight);
+        ctx.fillStyle = '#000';
+        ctx.fillText(formatTime(profitToday), x + barWidth/2, canvas.height - profitBarHeight - 5);
+        ctx.fillText('利润', x + barWidth/2, canvas.height - 2);
+      }
+
+      // 绘制饼状图（工作与娱乐时长比例及标注）
+      let pieCanvas = document.getElementById('pieChart');
+      if(pieCanvas.getContext) {
+        let ctxPie = pieCanvas.getContext('2d');
+        ctxPie.clearRect(0,0,pieCanvas.width,pieCanvas.height);
+        let total = workToday + playToday;
+        let startAngle = 0;
+        let colors = ['steelblue', 'tomato'];
+        let values = [workToday, playToday];
+        let labels = ['工作', '娱乐'];
+        let centerX = pieCanvas.width/2;
+        let centerY = pieCanvas.height/2;
+        let radius = Math.min(pieCanvas.width/2, pieCanvas.height/2);
+        
+        values.forEach((val, index) => {
+          let sliceAngle = (total === 0 ? 0 : (val / total) * 2 * Math.PI);
+          ctxPie.beginPath();
+          ctxPie.moveTo(centerX, centerY);
+          ctxPie.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
+          ctxPie.closePath();
+          ctxPie.fillStyle = colors[index];
+          ctxPie.fill();
+
+          let midAngle = startAngle + sliceAngle/2;
+          let labelX = centerX + (radius/1.5) * Math.cos(midAngle);
+          let labelY = centerY + (radius/1.5) * Math.sin(midAngle);
+          let percent = total === 0 ? 0 : (val/total*100).toFixed(1);
+          ctxPie.fillStyle = '#000';
+          ctxPie.font = '10px Arial';
+          ctxPie.textAlign = 'center';
+          ctxPie.fillText(labels[index] + ' ' + percent + '%', labelX, labelY);
+
+          startAngle += sliceAngle;
+        });
+      }
+
+      // 更新“今日成就徽章”展示栏，分门别类紧凑显示
+      const obtainedBadgesContainer = document.getElementById('obtainedBadgesContainer');
+      obtainedBadgesContainer.innerHTML = '<p>今日成就徽章</p>'; 
       const allAchievements = [
         ...workAchievements,
         ...playAchievements,
         ...profitAchievements,
         ...diffAchievements
       ];
-      allAchievements.forEach(ach => {
-        let conditionMet = false;
-        if(ach.type === 'work' && workToday >= ach.threshold) conditionMet = true;
-        if(ach.type === 'play' && playToday >= ach.threshold) conditionMet = true;
-        if(ach.type === 'profit' && profitToday >= ach.threshold) conditionMet = true;
-        if(ach.type === 'deposit' && deposit >= ach.threshold) conditionMet = true;
-        if(conditionMet) {
-          const span = document.createElement('span');
-          span.className = 'badge active';
-          span.textContent = `${ach.icon} ${ach.label}`;
-          // 若阈值<=5400，则设置深灰色边框，否则使用对应颜色
-          span.style.borderColor = (ach.threshold <= 5400) ? 'darkgray' : getBadgeColor(ach.threshold);
-          obtainedBadgesContainer.appendChild(span);
-        }
+
+      const categories = [
+        { type:'work', title:'工作徽章' },
+        { type:'play', title:'娱乐徽章' },
+        { type:'profit', title:'利润徽章' },
+        { type:'deposit', title:'存款徽章' }
+      ];
+
+      categories.forEach(cat => {
+        const section = document.createElement('div');
+        
+        const title = document.createElement('h3');
+        title.textContent = cat.title;
+        section.appendChild(title);
+
+        const badgeContainer = document.createElement('div');
+
+        allAchievements.filter(ach => ach.type === cat.type).forEach(ach => {
+          let conditionMet = false;
+          if(cat.type === 'work' && workToday >= ach.threshold) conditionMet = true;
+          if(cat.type === 'play' && playToday >= ach.threshold) conditionMet = true;
+          if(cat.type === 'profit' && profitToday >= ach.threshold) conditionMet = true;
+          if(cat.type === 'deposit' && deposit >= ach.threshold) conditionMet = true;
+          if(conditionMet) {
+            const span = document.createElement('span');
+            span.className = 'badge active';
+            span.textContent = `${ach.icon} ${ach.label}`;
+            styleBadge(span, ach);
+            badgeContainer.appendChild(span);
+          }
+        });
+
+        section.appendChild(badgeContainer);
+        obtainedBadgesContainer.appendChild(section);
       });
 
-      // 更新工作时长成就徽章
       const badgesContainer = document.getElementById('badges');
       badgesContainer.innerHTML = '';
       workAchievements.forEach(ach => {
@@ -352,11 +515,11 @@
         const span = document.createElement('span');
         span.className = 'badge' + (conditionMet ? ' active' : '');
         span.textContent = `${ach.icon} ${ach.label}`;
-        span.style.borderColor = conditionMet ? ((ach.threshold <= 3600) ? 'darkgray' : getBadgeColor(ach.threshold)) : '#ccc';
+        if(conditionMet) styleBadge(span, ach);
+        else span.style.borderColor = '#ccc';
         badgesContainer.appendChild(span);
       });
 
-      // 更新娱乐时长成就徽章
       const playBadgesContainer = document.getElementById('playBadges');
       playBadgesContainer.innerHTML = '';
       playAchievements.forEach(ach => {
@@ -364,11 +527,11 @@
         const span = document.createElement('span');
         span.className = 'badge' + (conditionMet ? ' active' : '');
         span.textContent = `${ach.icon} ${ach.label}`;
-        span.style.borderColor = conditionMet ? ((ach.threshold <= 3600) ? 'darkgray' : getBadgeColor(ach.threshold)) : '#ccc';
+        if(conditionMet) styleBadge(span, ach);
+        else span.style.borderColor = '#ccc';
         playBadgesContainer.appendChild(span);
       });
 
-      // 更新利润成就徽章
       const profitBadgesContainer = document.getElementById('profitBadges');
       profitBadgesContainer.innerHTML = '';
       profitAchievements.forEach(ach => {
@@ -376,11 +539,11 @@
         const span = document.createElement('span');
         span.className = 'badge' + (conditionMet ? ' active' : '');
         span.textContent = `${ach.icon} ${ach.label}`;
-        span.style.borderColor = conditionMet ? ((ach.threshold <= 3600) ? 'darkgray' : getBadgeColor(ach.threshold)) : '#ccc';
+        if(conditionMet) styleBadge(span, ach);
+        else span.style.borderColor = '#ccc';
         profitBadgesContainer.appendChild(span);
       });
 
-      // 更新存款成就徽章
       const diffBadgesContainer = document.getElementById('diffBadges');
       diffBadgesContainer.innerHTML = '';
       diffAchievements.forEach(ach => {
@@ -388,7 +551,8 @@
         const span = document.createElement('span');
         span.className = 'badge' + (conditionMet ? ' active' : '');
         span.textContent = `${ach.icon} ${ach.label}`;
-        span.style.borderColor = conditionMet ? ((ach.threshold <= 3600) ? 'darkgray' : getBadgeColor(ach.threshold)) : '#ccc';
+        if(conditionMet) styleBadge(span, ach);
+        else span.style.borderColor = '#ccc';
         diffBadgesContainer.appendChild(span);
       });
     }
@@ -410,6 +574,7 @@
       
       const now = new Date();
       const workAchievements = [
+        { threshold: 60, label: '好过没有（1min工作）', icon: '🆕' },
         { threshold: 1800, label: '小试锋芒（30min工作）', icon: '🎖️' },
         { threshold: 3600, label: '卧龙出山（1h工作）', icon: '🏅' },
         { threshold: 7200, label: '双连！一战成名（2h工作）', icon: '🎖️' },
@@ -454,12 +619,10 @@
       };
       
       let archives = JSON.parse(localStorage.getItem('archives')) || [];
-      // 提取日期部分，例如“2023年8月1日”
       const recordDate = timeStr.split('日')[0] + '日';
       let found = archives.find(e => e.time.startsWith(recordDate));
       
       if (found) {
-        // 如果存在同一天记录，则合并数据
         found.work += archiveEntry.work;
         found.play += archiveEntry.play;
         found.profit += archiveEntry.profit;
@@ -472,7 +635,6 @@
       }
       
       localStorage.setItem('archives', JSON.stringify(archives));
-      // 保留存款事件与其他非工作娱乐事件，清除工作与娱乐事件
       events = events.filter(e => e.type === 'surplus');
       localStorage.setItem('events', JSON.stringify(events));
       updateDisplay();
