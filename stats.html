@@ -339,12 +339,23 @@
         csvContent += `${entry.time},${entry.work},${entry.play},${entry.profit},${entry.highestBadges}\n`;
       });
 
+      // 计算最早和最晚日期
+      const times = archives.map(e => parseDateOnly(e.time).getTime());
+      const minTime = Math.min(...times);
+      const maxTime = Math.max(...times);
+      const minDate = new Date(minTime);
+      const maxDate = new Date(maxTime);
+      const formatDate = d => `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+      const startStr = formatDate(minDate);
+      const endStr = formatDate(maxDate);
+      const fileName = `统计记录-${startStr}-${endStr}.csv`;
+
       // 使用 Blob 创建文件对象以提高兼容性
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", "统计记录.csv");
+      link.setAttribute("download", fileName);
       
       document.body.appendChild(link);
       link.click();
@@ -422,13 +433,4 @@
           plugins: {
             title: {
               display: true,
-              text: '近一个月 工作时长与娱乐时长比例'
-            }
-          }
-        }
-      });
-      document.getElementById('pieChartContainer').style.display = 'block';
-    }
-  </script>
-</body>
-</html>
+              text:
