@@ -112,12 +112,12 @@
       display: inline-block;
       margin: 2px;
       padding: 5px 8px;
-      border: 2px solid #ccc; /* 默认浅灰色边框 */
+      border: 2px solid #ccc;
       border-radius: 5px;
       background: none;
       font-size: 14px;
       opacity: 0.5;
-      transition: opacity 0.3s, font-weight 0.3s, border-color 0.3s;
+      transition: opacity 0.3s, font-weight 0.3s, border-color 0.3s, background-color 0.3s, font-size 0.3s;
     }
     .badge.active {
       opacity: 1;
@@ -172,6 +172,57 @@
       gap: 20px;
       flex-wrap: wrap;
     }
+    /* 森林网格样式 */
+    #forestGridContainer {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 2px;
+      background: lightgreen;
+      width: 150px;
+      height: 150px;
+      margin: 10px auto;
+      padding: 5px;
+    }
+    .forestCell {
+      width: 100%;
+      height: 100%;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* 存款森林栏目样式 */
+    #forestSection {
+      text-align: center;
+      margin-top: 20px;
+    }
+    #forestSection p.quote {
+      font-size: 14px;
+      color: #555;
+      margin-top: 5px;
+    }
+    /* 累计成就徽章栏目样式 */
+    #cumulativeAchievementsContainer {
+      margin-top: 20px;
+      padding: 10px;
+      border-top: 1px solid #ccc;
+    }
+    #cumulativeAchievementsContainer p {
+      font-weight: bold;
+      font-size: 16px;
+    }
+    #cumulativeBadges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    #cumulativeBadges span {
+      margin: 2px;
+      padding: 2px 4px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+    }
   </style>
 </head>
 <body>
@@ -187,7 +238,7 @@
       <button id="startPlayBtn">开始娱乐</button>
       <button id="stopPlayBtn" disabled>停止娱乐</button>
     </div>
-    <!-- 数据与统计组样式 -->
+    <!-- 数据与统计组 -->
     <div class="button-group data-group">
       <button id="workBtn">手输工作时长</button>
       <button id="playBtn">手输娱乐时长</button>
@@ -234,10 +285,24 @@
     </div>
   </div>
   
-  <!-- 将“今日成就徽章”展示栏放置在“利润”表达式下方 -->
+  <!-- 今日成就徽章展示 -->
   <div id="obtainedBadgesContainer">
     <p>今日成就徽章</p>
     <!-- 徽章分门别类显示区域将由JS动态生成 -->
+  </div>
+
+  <!-- 存款森林栏目 -->
+  <div id="forestSection">
+    <h2>存款森林</h2>
+    <p id="currentDepositDisplay">当前存款为：0h 0min 0s</p>
+    <div id="forestGridContainer"></div>
+    <p class="quote">为学犹种树，春盛其华，秋成其实。——王阳明</p>
+  </div>
+
+  <!-- 累计成就徽章栏目 -->
+  <div id="cumulativeAchievementsContainer">
+    <p>累计成就徽章</p>
+    <div id="cumulativeBadges"></div>
   </div>
   
   <!-- 徽章区域 -->
@@ -293,7 +358,6 @@
       return `${sign}${hours}h ${minutes}min ${seconds}s`;
     }
 
-    // 根据阈值返回对应的边框颜色，使用区间判定
     function getBadgeColor(threshold) {
       if(threshold <= 3600) return 'white';                 
       else if(threshold > 3600 && threshold <= 7200) return 'green';    
@@ -303,7 +367,6 @@
       else return 'transparent';
     }
 
-    // 样式化徽章以体现等级差异
     function styleBadge(span, ach) {
       let color = getBadgeColor(ach.threshold);
       span.style.borderColor = (ach.threshold <= 5400) ? 'darkgray' : color;
@@ -314,47 +377,111 @@
       else if(color === 'orange') { span.style.backgroundColor = '#ffe0b3'; span.style.fontSize = '22px'; }
     }
 
+    function updateForestGrid(deposit) {
+      const depositDisplay = document.getElementById('currentDepositDisplay');
+      depositDisplay.textContent = `当前存款为：${formatTime(deposit)}`;
+      const container = document.getElementById('forestGridContainer');
+      container.innerHTML = '';
+      const totalCells = 25;
+      let fullHours = Math.floor(deposit / 3600);
+      let remainder = deposit - fullHours * 3600;
+      let trees = Math.min(fullHours, totalCells);
+      let extraIcon = '';
+      if(trees < totalCells) {
+        if(remainder >= 1800) extraIcon = '🌱'; // 小树苗
+        else if(remainder >= 600) extraIcon = '🌿'; // 草
+      }
+      for(let i = 0; i < totalCells; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'forestCell';
+        if(i < trees) {
+          cell.textContent = '🌳';
+        } else if(i === trees && extraIcon) {
+          cell.textContent = extraIcon;
+        } else {
+          cell.textContent = '';
+        }
+        container.appendChild(cell);
+      }
+    }
+
+    function updateCumulativeAchievements(archives, workAchievements, playAchievements, profitAchievements) {
+      let cumulativeCounts = {};
+      let allAch = [...workAchievements, ...playAchievements, ...profitAchievements];
+      for(let ach of allAch) {
+        cumulativeCounts[ach.label] = 0;
+      }
+      for(let record of archives) {
+        if(record.work >= 0) {
+          for(let ach of workAchievements) {
+            if(record.work >= ach.threshold) cumulativeCounts[ach.label]++;
+          }
+        }
+        if(record.play >= 0) {
+          for(let ach of playAchievements) {
+            if(record.play >= ach.threshold) cumulativeCounts[ach.label]++;
+          }
+        }
+        if(record.profit >= 0) {
+          for(let ach of profitAchievements) {
+            if(record.profit >= ach.threshold) cumulativeCounts[ach.label]++;
+          }
+        }
+      }
+      const container = document.getElementById('cumulativeBadges');
+      container.innerHTML = '';
+      for(let ach of allAch) {
+        let count = cumulativeCounts[ach.label];
+        if(count > 0) {
+          let span = document.createElement('span');
+          span.textContent = `${ach.icon} ${ach.label} x${count}`;
+          styleBadge(span, ach);
+          container.appendChild(span);
+        }
+      }
+    }
+
     function updateDisplay() {
-      // 定义成就数组，包括新增的1min工作成就
+      // 定义成就数组
       const workAchievements = [
-        { threshold: 60, label: '好过没有（1min工作）', icon: '🆕', type: 'work' },
-        { threshold: 1800, label: '小试锋芒（30min工作）', icon: '🎖️', type: 'work' },
-        { threshold: 3600, label: '卧龙出山（1h工作）', icon: '🏅', type: 'work' },
-        { threshold: 7200, label: '双连！一战成名（2h工作）', icon: '🎖️', type: 'work' },
-        { threshold: 10800, label: '三连！举世皆惊（3h工作）', icon: '🏅', type: 'work' },
-        { threshold: 14400, label: '四连！天下无敌（4h工作）', icon: '🎖️', type: 'work' },
-        { threshold: 18000, label: '五连！诛天灭地（5h工作）', icon: '🏅', type: 'work' }
+        { threshold: 60, label: '🆕 好过没有（1min工作）', icon: '🆕', type: 'work' },
+        { threshold: 1800, label: '🎖️ 小试锋芒（30min工作）', icon: '🎖️', type: 'work' },
+        { threshold: 3600, label: '🏅 卧龙出山（1h工作）', icon: '🏅', type: 'work' },
+        { threshold: 7200, label: '🎖️ 双连！一战成名（2h工作）', icon: '🎖️', type: 'work' },
+        { threshold: 10800, label: '🏅 三连！举世皆惊（3h工作）', icon: '🏅', type: 'work' },
+        { threshold: 14400, label: '🎖️ 四连！天下无敌（4h工作）', icon: '🎖️', type: 'work' },
+        { threshold: 18000, label: '🏅 五连！诛天灭地（5h工作）', icon: '🏅', type: 'work' }
       ];
       const playAchievements = [
-        { threshold: 15 * 60, label: '一刻流芳（15min娱乐）', icon: '🎉', type: 'play' },
-        { threshold: 60 * 60, label: '时光荏苒（1h娱乐）', icon: '🎉', type: 'play' },
-        { threshold: 120 * 60, label: '心旷神怡（2h娱乐）', icon: '🎉', type: 'play' },
-        { threshold: 180 * 60, label: '其乐无穷（3h娱乐）', icon: '🎉', type: 'play' },
-        { threshold: 240 * 60, label: '畅快淋漓（4h娱乐）', icon: '🎉', type: 'play' },
-        { threshold: 300 * 60, label: '人间至乐（5h娱乐）', icon: '🎉', type: 'play' },
-        { threshold: 360 * 60, label: '浮生半日（6h娱乐）', icon: '🎉', type: 'play' },
-        { threshold: 480 * 60, label: '天人合一（8h娱乐）', icon: '🎉', type: 'play' }
+        { threshold: 15 * 60, label: '🎉 一刻流芳（15min娱乐）', icon: '🎉', type: 'play' },
+        { threshold: 60 * 60, label: '🎉 时光荏苒（1h娱乐）', icon: '🎉', type: 'play' },
+        { threshold: 120 * 60, label: '🎉 心旷神怡（2h娱乐）', icon: '🎉', type: 'play' },
+        { threshold: 180 * 60, label: '🎉 其乐无穷（3h娱乐）', icon: '🎉', type: 'play' },
+        { threshold: 240 * 60, label: '🎉 畅快淋漓（4h娱乐）', icon: '🎉', type: 'play' },
+        { threshold: 300 * 60, label: '🎉 人间至乐（5h娱乐）', icon: '🎉', type: 'play' },
+        { threshold: 360 * 60, label: '🎉 浮生半日（6h娱乐）', icon: '🎉', type: 'play' },
+        { threshold: 480 * 60, label: '🎉 天人合一（8h娱乐）', icon: '🎉', type: 'play' }
       ];
       const profitAchievements = [
-        { threshold: 30 * 60, label: '一念之间（30min利润）', icon: '🎉', type: 'profit' },
-        { threshold: 60 * 60, label: '宁静致远（1h利润）', icon: '🎉', type: 'profit' },
-        { threshold: 120 * 60, label: '潜心笃行（2h利润）', icon: '🎉', type: 'profit' },
-        { threshold: 240 * 60, label: '一心一意（4h利润）', icon: '🎉', type: 'profit' },
-        { threshold: 300 * 60, label: '静水流深（5h利润）', icon: '🎉', type: 'profit' },
-        { threshold: 360 * 60, label: '忘我专注（6h利润）', icon: '🎉', type: 'profit' },
-        { threshold: 420 * 60, label: '如沐春风（7h利润）', icon: '🎉', type: 'profit' },
-        { threshold: 480 * 60, label: '无我无境（8h利润）', icon: '🎉', type: 'profit' }
+        { threshold: 30 * 60, label: '🎉 一念之间（30min利润）', icon: '🎉', type: 'profit' },
+        { threshold: 60 * 60, label: '🎉 宁静致远（1h利润）', icon: '🎉', type: 'profit' },
+        { threshold: 120 * 60, label: '🎉 潜心笃行（2h利润）', icon: '🎉', type: 'profit' },
+        { threshold: 240 * 60, label: '🎉 一心一意（4h利润）', icon: '🎉', type: 'profit' },
+        { threshold: 300 * 60, label: '🎉 静水流深（5h利润）', icon: '🎉', type: 'profit' },
+        { threshold: 360 * 60, label: '🎉 忘我专注（6h利润）', icon: '🎉', type: 'profit' },
+        { threshold: 420 * 60, label: '🎉 如沐春风（7h利润）', icon: '🎉', type: 'profit' },
+        { threshold: 480 * 60, label: '🎉 无我无境（8h利润）', icon: '🎉', type: 'profit' }
       ];
       const diffAchievements = [
-        { threshold: 1800, label: '小有存粮（30min存款）', icon: '🌾', type: 'deposit' },
-        { threshold: 3600, label: '半仓满盈（1h存款）', icon: '🌾', type: 'deposit' },
-        { threshold: 7200, label: '谷堆满仓（2h存款）', icon: '🌾', type: 'deposit' },
-        { threshold: 10800, label: '富甲一方（3h存款）', icon: '🌾', type: 'deposit' },
-        { threshold: 14400, label: '金谷满仓（4h存款）', icon: '🌾', type: 'deposit' },
-        { threshold: 18000, label: '粮仓巨贾（5h存款）', icon: '🌾', type: 'deposit' },
-        { threshold: 21600, label: '谷满天下（6h存款）', icon: '🌾', type: 'deposit' },
-        { threshold: 25200, label: '五谷之皇（7h存款）', icon: '🌾', type: 'deposit' },
-        { threshold: 28800, label: '万仓之主（8h存款）', icon: '🌾', type: 'deposit' }
+        { threshold: 1800, label: '🌾 小有存粮（30min存款）', icon: '🌾', type: 'deposit' },
+        { threshold: 3600, label: '🌾 半仓满盈（1h存款）', icon: '🌾', type: 'deposit' },
+        { threshold: 7200, label: '🌾 谷堆满仓（2h存款）', icon: '🌾', type: 'deposit' },
+        { threshold: 10800, label: '🌾 富甲一方（3h存款）', icon: '🌾', type: 'deposit' },
+        { threshold: 14400, label: '🌾 金谷满仓（4h存款）', icon: '🌾', type: 'deposit' },
+        { threshold: 18000, label: '🌾 粮仓巨贾（5h存款）', icon: '🌾', type: 'deposit' },
+        { threshold: 21600, label: '🌾 谷满天下（6h存款）', icon: '🌾', type: 'deposit' },
+        { threshold: 25200, label: '🌾 五谷之皇（7h存款）', icon: '🌾', type: 'deposit' },
+        { threshold: 28800, label: '🌾 万仓之主（8h存款）', icon: '🌾', type: 'deposit' }
       ];
 
       let workEvents = events.filter(e => e.type === 'work');
@@ -386,6 +513,8 @@
       document.getElementById('todayPlayTime').textContent = formatTime(playToday);
       document.getElementById('todayProfit').textContent = formatTime(profitToday);
 
+      updateForestGrid(deposit);
+
       // 绘制柱状图
       let canvas = document.getElementById('todayChart');
       if(canvas.getContext) {
@@ -405,7 +534,9 @@
         ctx.fillStyle = 'steelblue';
         ctx.fillRect(x, canvas.height - workBarHeight, barWidth, workBarHeight);
         ctx.fillStyle = '#000';
-        ctx.fillText(formatTime(workToday), x + barWidth/2, canvas.height - workBarHeight - 5);
+        if(workToday > 0) {
+          ctx.fillText(formatTime(workToday), x + barWidth/2, canvas.height - workBarHeight - 5);
+        }
         ctx.fillText('工作', x + barWidth/2, canvas.height - 2);
         x += barWidth + spacing;
         
@@ -414,7 +545,9 @@
         ctx.fillStyle = 'tomato';
         ctx.fillRect(x, canvas.height - playBarHeight, barWidth, playBarHeight);
         ctx.fillStyle = '#000';
-        ctx.fillText(formatTime(playToday), x + barWidth/2, canvas.height - playBarHeight - 5);
+        if(playToday > 0) {
+          ctx.fillText(formatTime(playToday), x + barWidth/2, canvas.height - playBarHeight - 5);
+        }
         ctx.fillText('娱乐', x + barWidth/2, canvas.height - 2);
         x += barWidth + spacing;
         
@@ -423,11 +556,13 @@
         ctx.fillStyle = 'gold';
         ctx.fillRect(x, canvas.height - profitBarHeight, barWidth, profitBarHeight);
         ctx.fillStyle = '#000';
-        ctx.fillText(formatTime(profitToday), x + barWidth/2, canvas.height - profitBarHeight - 5);
+        if(profitToday > 0) {
+          ctx.fillText(formatTime(profitToday), x + barWidth/2, canvas.height - profitBarHeight - 5);
+        }
         ctx.fillText('利润', x + barWidth/2, canvas.height - 2);
       }
 
-      // 绘制饼状图（工作与娱乐时长比例及标注）
+      // 绘制饼状图
       let pieCanvas = document.getElementById('pieChart');
       if(pieCanvas.getContext) {
         let ctxPie = pieCanvas.getContext('2d');
@@ -463,7 +598,7 @@
         });
       }
 
-      // 更新“今日成就徽章”展示栏，分门别类紧凑显示
+      // 更新“今日成就徽章”展示栏
       const obtainedBadgesContainer = document.getElementById('obtainedBadgesContainer');
       obtainedBadgesContainer.innerHTML = '<p>今日成就徽章</p>'; 
       const allAchievements = [
@@ -555,6 +690,8 @@
         else span.style.borderColor = '#ccc';
         diffBadgesContainer.appendChild(span);
       });
+
+      updateCumulativeAchievements(archives, workAchievements, playAchievements, profitAchievements);
     }
 
     function getHighest(value, achievements) {
@@ -574,33 +711,33 @@
       
       const now = new Date();
       const workAchievements = [
-        { threshold: 60, label: '好过没有（1min工作）', icon: '🆕' },
-        { threshold: 1800, label: '小试锋芒（30min工作）', icon: '🎖️' },
-        { threshold: 3600, label: '卧龙出山（1h工作）', icon: '🏅' },
-        { threshold: 7200, label: '双连！一战成名（2h工作）', icon: '🎖️' },
-        { threshold: 10800, label: '三连！举世皆惊（3h工作）', icon: '🏅' },
-        { threshold: 14400, label: '四连！天下无敌（4h工作）', icon: '🎖️' },
-        { threshold: 18000, label: '五连！诛天灭地（5h工作）', icon: '🏅' }
+        { threshold: 60, label: '🆕 好过没有（1min工作）', icon: '🆕' },
+        { threshold: 1800, label: '🎖️ 小试锋芒（30min工作）', icon: '🎖️' },
+        { threshold: 3600, label: '🏅 卧龙出山（1h工作）', icon: '🏅' },
+        { threshold: 7200, label: '🎖️ 双连！一战成名（2h工作）', icon: '🎖️' },
+        { threshold: 10800, label: '🏅 三连！举世皆惊（3h工作）', icon: '🏅' },
+        { threshold: 14400, label: '🎖️ 四连！天下无敌（4h工作）', icon: '🎖️' },
+        { threshold: 18000, label: '🏅 五连！诛天灭地（5h工作）', icon: '🏅' }
       ];
       const playAchievements = [
-        { threshold: 15 * 60, label: '一刻流芳（15min娱乐）', icon: '🎉' },
-        { threshold: 60 * 60, label: '时光荏苒（1h娱乐）', icon: '🎉' },
-        { threshold: 120 * 60, label: '心旷神怡（2h娱乐）', icon: '🎉' },
-        { threshold: 180 * 60, label: '其乐无穷（3h娱乐）', icon: '🎉' },
-        { threshold: 240 * 60, label: '畅快淋漓（4h娱乐）', icon: '🎉' },
-        { threshold: 300 * 60, label: '人间至乐（5h娱乐）', icon: '🎉' },
-        { threshold: 360 * 60, label: '浮生半日（6h娱乐）', icon: '🎉' },
-        { threshold: 480 * 60, label: '天人合一（8h娱乐）', icon: '🎉' }
+        { threshold: 15 * 60, label: '🎉 一刻流芳（15min娱乐）', icon: '🎉' },
+        { threshold: 60 * 60, label: '🎉 时光荏苒（1h娱乐）', icon: '🎉' },
+        { threshold: 120 * 60, label: '🎉 心旷神怡（2h娱乐）', icon: '🎉' },
+        { threshold: 180 * 60, label: '🎉 其乐无穷（3h娱乐）', icon: '🎉' },
+        { threshold: 240 * 60, label: '🎉 畅快淋漓（4h娱乐）', icon: '🎉' },
+        { threshold: 300 * 60, label: '🎉 人间至乐（5h娱乐）', icon: '🎉' },
+        { threshold: 360 * 60, label: '🎉 浮生半日（6h娱乐）', icon: '🎉' },
+        { threshold: 480 * 60, label: '🎉 天人合一（8h娱乐）', icon: '🎉' }
       ];
       const profitAchievements = [
-        { threshold: 30 * 60, label: '一念之间（30min利润）', icon: '🎉' },
-        { threshold: 60 * 60, label: '宁静致远（1h利润）', icon: '🎉' },
-        { threshold: 120 * 60, label: '潜心笃行（2h利润）', icon: '🎉' },
-        { threshold: 240 * 60, label: '一心一意（4h利润）', icon: '🎉' },
-        { threshold: 300 * 60, label: '静水流深（5h利润）', icon: '🎉' },
-        { threshold: 360 * 60, label: '忘我专注（6h利润）', icon: '🎉' },
-        { threshold: 420 * 60, label: '如沐春风（7h利润）', icon: '🎉' },
-        { threshold: 480 * 60, label: '无我无境（8h利润）', icon: '🎉' }
+        { threshold: 30 * 60, label: '🎉 一念之间（30min利润）', icon: '🎉' },
+        { threshold: 60 * 60, label: '🎉 宁静致远（1h利润）', icon: '🎉' },
+        { threshold: 120 * 60, label: '🎉 潜心笃行（2h利润）', icon: '🎉' },
+        { threshold: 240 * 60, label: '🎉 一心一意（4h利润）', icon: '🎉' },
+        { threshold: 300 * 60, label: '🎉 静水流深（5h利润）', icon: '🎉' },
+        { threshold: 360 * 60, label: '🎉 忘我专注（6h利润）', icon: '🎉' },
+        { threshold: 420 * 60, label: '🎉 如沐春风（7h利润）', icon: '🎉' },
+        { threshold: 480 * 60, label: '🎉 无我无境（8h利润）', icon: '🎉' }
       ];
       
       const timeStr = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${now.getHours()}点${now.getMinutes()}分`;
