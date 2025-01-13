@@ -1,4 +1,4 @@
-<!DOCTYPE html>    
+<!DOCTYPE html>     
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -173,7 +173,9 @@
       flex-wrap: wrap;
     }
     /* 森林网格样式 */
-    #forestGridContainer {
+    #forestGridContainer, 
+    #workForestGridContainer, 
+    #entertainmentForestGridContainer {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
       gap: 2px;
@@ -190,16 +192,35 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      /* 默认边框样式，非存款森林使用 */
+      border: 1px solid #ccc;
     }
+    /* 仅存款森林边框改为金色 */
+  //  #forestGridContainer .forestCell {
+   //   border: 1px solid gold;
+   // }
     /* 存款森林栏目样式 */
     #forestSection {
       text-align: center;
       margin-top: 20px;
     }
-    #forestSection p.quote {
+    /* 工作森林栏目样式，与存款森林相同 */
+    #workForestSection {
+      text-align: center;
+      margin-top: 20px;
+    }
+    /* 娱乐森林栏目样式，与存款森林相同 */
+    #entertainmentForestSection {
+      text-align: center;
+      margin-top: 20px;
+    }
+    #forestSection p.quote,
+    #workForestSection p.quote,
+    #entertainmentForestSection p.quote {
       font-size: 14px;
       color: #555;
       margin-top: 5px;
+      font-style: italic;
     }
     /* 累计成就徽章栏目样式 */
     #cumulativeAchievementsContainer {
@@ -291,14 +312,30 @@
     <!-- 徽章分门别类显示区域将由JS动态生成 -->
   </div>
 
+  <!-- 新增：工作森林栏目 -->
+  <div id="workForestSection">
+    <h2>工作森林</h2>
+    <p id="currentWorkDisplay">累计工作时长为：0h 0min 0s</p>
+    <div id="workForestGridContainer"></div>
+    <p class="quote">为学犹种树，春盛其华，秋成其实。——王阳明</p>
+  </div>
+
+  <!-- 新增：娱乐森林栏目 -->
+  <div id="entertainmentForestSection">
+    <h2>娱乐森林</h2>
+    <p id="currentEntertainmentDisplay">累计娱乐时长为：0h 0min 0s</p>
+    <div id="entertainmentForestGridContainer"></div>
+    <p class="quote">休对人间作忙事，闲看庭前花开落。——无名氏</p>
+  </div>
+  
   <!-- 存款森林栏目 -->
   <div id="forestSection">
     <h2>存款森林</h2>
     <p id="currentDepositDisplay">当前存款为：0h 0min 0s</p>
     <div id="forestGridContainer"></div>
-    <p class="quote">为学犹种树，春盛其华，秋成其实。——王阳明</p>
+    <p class="quote">一日不作，一日不食。——《百丈清规》</p>
   </div>
-
+  
   <!-- 累计成就徽章栏目 -->
   <div id="cumulativeAchievementsContainer">
     <p>累计成就徽章</p>
@@ -388,14 +425,72 @@
       let trees = Math.min(fullHours, totalCells);
       let extraIcon = '';
       if(trees < totalCells) {
-        if(remainder >= 1800) extraIcon = '🌱'; // 小树苗
-        else if(remainder >= 600) extraIcon = '🌿'; // 草
+        if(remainder >= 1800) extraIcon = '🪙';
+        else if(remainder >= 600) extraIcon = '🪙';
+      }
+      for(let i = 0; i < totalCells; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'forestCell';
+        if(i < trees) {
+          cell.textContent = '💰';
+        } else if(i === trees && extraIcon) {
+          cell.textContent = extraIcon;
+        } else {
+          cell.textContent = '';
+        }
+        container.appendChild(cell);
+      }
+    }
+
+    // 更新工作森林网格
+    function updateWorkForestGrid(totalWork) {
+      const workDisplay = document.getElementById('currentWorkDisplay');
+      workDisplay.textContent = `累计工作时长为：${formatTime(totalWork)}`;
+      const container = document.getElementById('workForestGridContainer');
+      container.innerHTML = '';
+      const totalCells = 25;
+      let fullHours = Math.floor(totalWork / 3600);
+      let remainder = totalWork - fullHours * 3600;
+      let trees = Math.min(fullHours, totalCells);
+      let extraIcon = '';
+      if(trees < totalCells) {
+        if(remainder >= 1800) extraIcon = '🌱';
+        else if(remainder >= 600) extraIcon = '🌿';
       }
       for(let i = 0; i < totalCells; i++) {
         const cell = document.createElement('div');
         cell.className = 'forestCell';
         if(i < trees) {
           cell.textContent = '🌳';
+        } else if(i === trees && extraIcon) {
+          cell.textContent = extraIcon;
+        } else {
+          cell.textContent = '';
+        }
+        container.appendChild(cell);
+      }
+    }
+
+    // 新增：更新娱乐森林网格
+    function updateEntertainmentForestGrid(totalPlay) {
+      const entertainmentDisplay = document.getElementById('currentEntertainmentDisplay');
+      entertainmentDisplay.textContent = `累计娱乐时长为：${formatTime(totalPlay)}`;
+      const container = document.getElementById('entertainmentForestGridContainer');
+      container.innerHTML = '';
+      const totalCells = 25;
+      let fullHours = Math.floor(totalPlay / 3600);
+      let remainder = totalPlay - fullHours * 3600;
+      let trees = Math.min(fullHours, totalCells);
+      let extraIcon = '';
+      if(trees < totalCells) {
+        if(remainder >= 1800) extraIcon = '😃';
+        else if(remainder >= 600) extraIcon = '😊';
+      }
+      for(let i = 0; i < totalCells; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'forestCell';
+        if(i < trees) {
+          cell.textContent = '😆';
         } else if(i === trees && extraIcon) {
           cell.textContent = extraIcon;
         } else {
@@ -514,6 +609,14 @@
       document.getElementById('todayProfit').textContent = formatTime(profitToday);
 
       updateForestGrid(deposit);
+
+      // 更新工作森林
+      let totalWork = archives.reduce((sum,a) => sum + a.work, 0);
+      updateWorkForestGrid(totalWork);
+
+      // 新增：更新娱乐森林
+      let totalPlay = archives.reduce((sum,a) => sum + a.play, 0);
+      updateEntertainmentForestGrid(totalPlay);
 
       // 绘制柱状图
       let canvas = document.getElementById('todayChart');
